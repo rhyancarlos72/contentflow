@@ -80,6 +80,17 @@ Modelo padrão `claude-opus-5-5` (troque com o secret `AI_MODEL`), saídas em JS
 5. **Stripe**: crie os preços recorrentes em BRL (R$ 19,90 e R$ 39,90), coloque os IDs em `STRIPE_PRICE_CREATOR`/`STRIPE_PRICE_PRO` e aponte um webhook para `https://SEU_REF.supabase.co/functions/v1/billing-webhook` com os eventos `checkout.session.completed` e `customer.subscription.*`.
 6. **Lembretes**: a migração agenda `generate_notifications()` a cada hora via `pg_cron` (habilite a extensão). Para e-mails, agende uma chamada a `send-notification-emails` com `Authorization: Bearer $CRON_SECRET`.
 
+## Publicar na Hostinger
+
+O frontend é um site estático (pasta `dist/`). O workflow `.github/workflows/deploy-hostinger.yml` gera o build a cada push na `main` e publica o resultado no branch **`hostinger`**, já com o `.htaccess` que faz as rotas do React funcionarem, força HTTPS e configura o cache.
+
+1. No GitHub: **Settings → Secrets and variables → Actions** e crie os secrets `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (opcional: a variável `VITE_GOOGLE_AUTH_ENABLED=true`). Rode o workflow uma vez em **Actions → Build para Hostinger → Run workflow**.
+2. Na Hostinger: **hPanel → Avançado → Git**, informe o repositório, branch `hostinger` e diretório vazio (instala em `public_html`). Se o repositório for privado, adicione a chave SSH mostrada pela Hostinger em **GitHub → Settings → Deploy keys**.
+3. Ative a **implantação automática** e cadastre a URL de webhook da Hostinger em **GitHub → Settings → Webhooks**: cada push na `main` gera um novo build e a Hostinger puxa a atualização.
+4. No Supabase, use o seu domínio em **Authentication → URL Configuration** (Site URL e redirecionamentos) e em `APP_URL`/`APP_ORIGIN` das Edge Functions.
+
+O backend (banco, autenticação, IA e pagamentos) continua no Supabase; a Hostinger só serve os arquivos do site.
+
 ## Testes
 
 ```bash
