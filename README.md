@@ -97,7 +97,7 @@ Modelo padrão `claude-opus-5-5` (troque com o secret `AI_MODEL`), saídas em JS
 
 Variáveis de ambiente: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `VITE_GOOGLE_AUTH_ENABLED` (`false` até configurar o Google).
 
-O `server.js` gera o build sozinho se a pasta `dist/` não existir, serve o app com as rotas do React e entrega as variáveis acima em `/env-config.js`. Por isso elas valem mesmo que a hospedagem só as aplique ao rodar o app. Saúde do serviço: `/healthz`.
+O `server.js` é CommonJS (o servidor LiteSpeed da Hostinger o carrega com `require()`). Ele gera o build em segundo plano se a pasta `dist/` não existir — mostrando uma página de "preparando" por alguns segundos —, serve o app com as rotas do React e entrega as variáveis acima em `/env-config.js`. Por isso elas valem mesmo que a hospedagem só as aplique ao rodar o app. Saúde do serviço: `/healthz`.
 
 ### Opção B — Hospedagem comum (Apache, hPanel → Avançado → Git)
 
