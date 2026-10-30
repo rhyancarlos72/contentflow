@@ -7,8 +7,8 @@
 //   Actions). Se ela faltar, gera o build num processo separado e mostra uma
 //   página de "preparando" até terminar.
 // - Serve os arquivos estáticos com cache e cai no index.html nas rotas do React.
-// - Publica /env-config.js com as variáveis VITE_* do ambiente (configuração em
-//   tempo de execução, além da embutida no build).
+// - Embute as variáveis VITE_* do ambiente no index.html e as publica também em
+//   /__config (configuração em tempo de execução, além da embutida no build).
 "use strict";
 
 const express = require("express");
@@ -89,6 +89,13 @@ app.get("/healthz", (_req, res) => res.json({
   env: Object.fromEntries(PUBLIC_ENV.map((k) => [k, Boolean(process.env[k])])),
 }));
 
+const publicConfig = Object.fromEntries(PUBLIC_ENV.filter((k) => process.env[k]).map((k) => [k, process.env[k]]));
+
+// Configuração pública em JSON. Não existe como arquivo, então sempre passa pelo
+// Node — o app consulta este endereço se a página vier sem a configuração embutida.
+app.get("/__config", (_req, res) => {
+  res.set("Cache-Control", "no-store").json(publicConfig);
+});
 app.get("/env-config.js", (_req, res) => {
   res.type("application/javascript").set("Cache-Control", "no-store").send(envScript);
 });
@@ -106,9 +113,12 @@ app.use((req, res, next) => {
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y", fallthrough: false }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
 
-// Rotas do React Router
+// Rotas do React Router: entrega o index.html com a configuração embutida.
+let cachedHtml = null;
 app.get("/{*path}", (_req, res) => {
-  res.set("Cache-Control", "no-cache").sendFile(indexHtml);
+  cachedHtml ??= fs.readFileSync(indexHtml, "utf8")
+    .replace("<!--__CONTENTFLOW_ENV__-->", "<script>" + envScript.replace(/</g, "\\u003c") + "</script>");
+  res.set("Cache-Control", "no-store").type("html").send(cachedHtml);
 });
 
 const port = Number(process.env.PORT) || 3000;
