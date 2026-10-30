@@ -82,14 +82,29 @@ Modelo padrão `claude-opus-5-5` (troque com o secret `AI_MODEL`), saídas em JS
 
 ## Publicar na Hostinger
 
-O frontend é um site estático (pasta `dist/`). O workflow `.github/workflows/deploy-hostinger.yml` gera o build a cada push na `main` e publica o resultado no branch **`hostinger`**, já com o `.htaccess` que faz as rotas do React funcionarem, força HTTPS e configura o cache.
+### Opção A — Aplicativo Node.js (hPanel → Sites → Adicionar site → Node.js / importar do GitHub)
 
-1. A configuração pública do frontend fica em `.env.production` (URL do Supabase e anon key, que é pública por design). Se preferir, crie secrets com os mesmos nomes em **GitHub → Settings → Secrets and variables → Actions**: eles têm prioridade no build.
-2. Na Hostinger: **hPanel → Avançado → Git**, informe o repositório, branch `hostinger` e diretório vazio (instala em `public_html`). Se o repositório for privado, adicione a chave SSH mostrada pela Hostinger em **GitHub → Settings → Deploy keys**.
-3. Ative a **implantação automática** e cadastre a URL de webhook da Hostinger em **GitHub → Settings → Webhooks**: cada push na `main` gera um novo build e a Hostinger puxa a atualização.
-4. No Supabase, use o seu domínio em **Authentication → URL Configuration** (Site URL e redirecionamentos) e em `APP_URL`/`APP_ORIGIN` das Edge Functions.
+| Campo | Valor |
+|---|---|
+| Framework | **Express** |
+| Branch | `main` |
+| Versão do Node | `22.x` |
+| Diretório raiz | `./` |
+| Gerenciador de pacotes | `npm` |
+| Arquivo de entrada | `server.js` |
+| Comando de build (se pedir) | `npm run build` |
+| Comando de início (se pedir) | `npm start` |
 
-O backend (banco, autenticação, IA e pagamentos) continua no Supabase; a Hostinger só serve os arquivos do site.
+Variáveis de ambiente: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `VITE_GOOGLE_AUTH_ENABLED` (`false` até configurar o Google).
+
+O `server.js` gera o build sozinho se a pasta `dist/` não existir, serve o app com as rotas do React e entrega as variáveis acima em `/env-config.js`. Por isso elas valem mesmo que a hospedagem só as aplique ao rodar o app. Saúde do serviço: `/healthz`.
+
+### Opção B — Hospedagem comum (Apache, hPanel → Avançado → Git)
+
+O workflow `.github/workflows/deploy-hostinger.yml` gera o build a cada push na `main` e publica o resultado no branch **`hostinger`**, já com o `.htaccess` (rotas do React, HTTPS e cache). Na Hostinger, aponte o Git para o branch `hostinger` com diretório vazio e ative a implantação automática. Aqui a configuração vem do `.env.production` ou de secrets do GitHub com os mesmos nomes.
+
+### Nos dois casos
+No Supabase, use o seu domínio em **Authentication → URL Configuration** (Site URL e redirecionamentos `/redefinir-senha` e `/app`) e em `APP_URL`/`APP_ORIGIN` das Edge Functions. O backend (banco, login, IA e pagamentos) continua no Supabase.
 
 ## Testes
 

@@ -1,7 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Configuração em tempo de execução (server.js → /env-config.js) tem prioridade sobre a do build.
+const runtimeEnv = (window as { __ENV__?: Record<string, string> }).__ENV__ ?? {};
+const env = (key: string) => runtimeEnv[key] || (import.meta.env[key] as string | undefined) || undefined;
+
+const url = env("VITE_SUPABASE_URL");
+const anonKey = env("VITE_SUPABASE_ANON_KEY");
 
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
@@ -9,7 +13,7 @@ export const supabase = createClient(url ?? "http://localhost:54321", anonKey ??
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
-export const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
+export const googleAuthEnabled = env("VITE_GOOGLE_AUTH_ENABLED") === "true";
 
 export const STORAGE_BUCKET = "content-files";
 
