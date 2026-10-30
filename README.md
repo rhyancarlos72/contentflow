@@ -84,7 +84,7 @@ Modelo padrão `claude-opus-5-5` (troque com o secret `AI_MODEL`), saídas em JS
 
 O frontend é um site estático (pasta `dist/`). O workflow `.github/workflows/deploy-hostinger.yml` gera o build a cada push na `main` e publica o resultado no branch **`hostinger`**, já com o `.htaccess` que faz as rotas do React funcionarem, força HTTPS e configura o cache.
 
-1. No GitHub: **Settings → Secrets and variables → Actions** e crie os secrets `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (opcional: a variável `VITE_GOOGLE_AUTH_ENABLED=true`). Rode o workflow uma vez em **Actions → Build para Hostinger → Run workflow**.
+1. A configuração pública do frontend fica em `.env.production` (URL do Supabase e anon key, que é pública por design). Se preferir, crie secrets com os mesmos nomes em **GitHub → Settings → Secrets and variables → Actions**: eles têm prioridade no build.
 2. Na Hostinger: **hPanel → Avançado → Git**, informe o repositório, branch `hostinger` e diretório vazio (instala em `public_html`). Se o repositório for privado, adicione a chave SSH mostrada pela Hostinger em **GitHub → Settings → Deploy keys**.
 3. Ative a **implantação automática** e cadastre a URL de webhook da Hostinger em **GitHub → Settings → Webhooks**: cada push na `main` gera um novo build e a Hostinger puxa a atualização.
 4. No Supabase, use o seu domínio em **Authentication → URL Configuration** (Site URL e redirecionamentos) e em `APP_URL`/`APP_ORIGIN` das Edge Functions.

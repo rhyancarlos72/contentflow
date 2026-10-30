@@ -29,11 +29,16 @@ jobs:
       - run: npm ci
 
       - name: Build
-        run: npm run build
+        # Usa os secrets quando existirem; senão vale o .env.production do repositório.
+        run: |
+          if [ -n "$SB_URL" ]; then export VITE_SUPABASE_URL="$SB_URL"; fi
+          if [ -n "$SB_ANON_KEY" ]; then export VITE_SUPABASE_ANON_KEY="$SB_ANON_KEY"; fi
+          if [ -n "$GOOGLE_AUTH" ]; then export VITE_GOOGLE_AUTH_ENABLED="$GOOGLE_AUTH"; fi
+          npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_GOOGLE_AUTH_ENABLED: ${{ vars.VITE_GOOGLE_AUTH_ENABLED || 'false' }}
+          SB_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SB_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          GOOGLE_AUTH: ${{ vars.VITE_GOOGLE_AUTH_ENABLED }}
 
       - name: Publicar dist/ no branch hostinger
         run: |
