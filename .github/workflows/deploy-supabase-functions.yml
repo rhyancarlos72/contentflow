@@ -36,5 +36,22 @@ jobs:
         with:
           version: latest
 
-      - name: Publicar todas as funções
-        run: supabase functions deploy --project-ref "$PROJECT_REF"
+      - name: Publicar funções
+        # Uma por vez; em caso de erro, o final do log vira anotação no resumo da execução.
+        run: |
+          failed=0
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ "$name" = "_shared" ] && continue
+            echo "::group::$name"
+            if supabase functions deploy "$name" --project-ref "$PROJECT_REF" --use-api > "/tmp/$name.log" 2>&1; then
+              cat "/tmp/$name.log"
+            else
+              cat "/tmp/$name.log"
+              msg=$(tail -n 25 "/tmp/$name.log" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+              echo "::error title=Falha ao publicar $name::$msg"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $failed
