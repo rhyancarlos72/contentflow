@@ -1,7 +1,7 @@
 // Cliente Google Gemini. A chave fica apenas no servidor (secret GEMINI_API_KEY).
 // Modelo padrão: gemini-flash-latest (Flash mais recente, com plano gratuito na
 // API). Troque com o secret GEMINI_MODEL.
-import { ApiError, GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI } from "npm:@google/genai@~2.31.0";
 import type { GenerateOptions, GenerateResult } from "./ai.ts";
 import { HttpError, requireEnv } from "./http.ts";
 

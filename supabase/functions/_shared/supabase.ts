@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@^2.118.0";
 import { HttpError } from "./http.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

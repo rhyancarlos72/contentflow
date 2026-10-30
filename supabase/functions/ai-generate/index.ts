@@ -2,7 +2,7 @@
 // Ponto único de geração com IA. Valida sessão, plano, limites mensais e por
 // minuto, monta o contexto do projeto (memória isolada por projeto + histórico
 // para evitar repetição), chama o Claude e registra o consumo.
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.118.0";
 import { generateStructured, type Effort } from "../_shared/ai.ts";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { admin, authenticate, getPlan, type PlanInfo } from "../_shared/supabase.ts";

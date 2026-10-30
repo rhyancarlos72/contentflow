@@ -68,14 +68,7 @@ Nos dois, a resposta vem em JSON validado por schema, a chave fica só no servid
    ```bash
    npx supabase db push
    ```
-2. Configure os secrets das funções (modelo em `supabase/functions/.env.example`) e publique:
-   ```bash
-   npx supabase secrets set --env-file supabase/functions/.env
-   ```
-   ```bash
-   npx supabase functions deploy
-   ```
-   (`billing-webhook` e `send-notification-emails` já estão com `verify_jwt = false` em `supabase/config.toml`.)
+2. Configure os secrets das funções em **Supabase → Edge Functions → Secrets** (modelo em `supabase/functions/.env.example`). As funções são publicadas pelo GitHub Actions (`.github/workflows/deploy-supabase-functions.yml`) a cada mudança em `supabase/functions/`: basta criar uma vez o secret `SUPABASE_ACCESS_TOKEN` no GitHub (token em Supabase → Account → Access Tokens). Para publicar manualmente: `npx supabase functions deploy --project-ref SEU_REF`.
 3. Frontend: copie `.env.example` para `.env` com a URL e a anon key, depois:
    ```bash
    npm install && npm run dev

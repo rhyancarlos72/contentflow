@@ -2,7 +2,7 @@
 // Recebe eventos do Stripe (assinatura verificada) e sincroniza a tabela
 // subscriptions. É a única via pela qual um plano pago é liberado.
 // Deploy com --no-verify-jwt: a autenticação é a assinatura do Stripe.
-import Stripe from "stripe";
+import Stripe from "npm:stripe@~23.0.1";
 import { corsHeaders, requireEnv } from "../_shared/http.ts";
 import { getStripe, planForPrice } from "../_shared/stripe.ts";
 import { admin } from "../_shared/supabase.ts";

@@ -1,6 +1,6 @@
 // Cliente Claude usado pelas Edge Functions. A chave fica apenas no servidor
 // (secret ANTHROPIC_API_KEY) e nunca chega ao navegador.
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "npm:@anthropic-ai/sdk@^1.3.0";
 import { HttpError, requireEnv } from "./http.ts";
 
 const CLAUDE_MODEL = Deno.env.get("AI_MODEL") ?? "claude-opus-5-5";

@@ -1,4 +1,4 @@
-import Stripe from "stripe";
+import Stripe from "npm:stripe@~23.0.1";
 import { requireEnv } from "./http.ts";
 
 let stripe: Stripe | null = null;
