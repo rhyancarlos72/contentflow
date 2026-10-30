@@ -3,8 +3,9 @@
 // com require(), que não aceita módulos ESM com top-level await.
 // Também roda com `node server.js` em qualquer outra hospedagem (Render, Railway, VPS…).
 //
-// - Começa a responder na hora; se dist/ não existir, gera o build em segundo
-//   plano e mostra uma página de "preparando" até terminar.
+// - Usa a pasta dist/ que já vem pronta no repositório (atualizada pelo GitHub
+//   Actions). Se ela faltar, gera o build num processo separado e mostra uma
+//   página de "preparando" até terminar.
 // - Serve os arquivos estáticos com cache e cai no index.html nas rotas do React.
 // - Publica /env-config.js com as variáveis VITE_* do ambiente (configuração em
 //   tempo de execução, além da embutida no build).
@@ -22,17 +23,31 @@ let ready = fs.existsSync(indexHtml);
 let buildError = null;
 
 if (!ready) {
+  // Normalmente dist/ já vem pronta do repositório. Se faltar, gera o build num
+  // processo separado: carregar o Vite dentro deste processo falha no LiteSpeed
+  // (o stdin dele é um socket FastCGI e o Node dispara "open EEXIST").
   console.log("[contentflow] dist/ não encontrado — gerando build em segundo plano…");
-  import("vite")
-    .then(({ build }) => build({ root, logLevel: "warn" }))
-    .then(() => {
-      ready = fs.existsSync(indexHtml);
-      console.log("[contentflow] build concluído");
-    })
-    .catch((err) => {
-      buildError = err;
-      console.error("[contentflow] falha no build:", err);
-    });
+  const { spawn } = require("node:child_process");
+  const viteBin = path.join(root, "node_modules", "vite", "bin", "vite.js");
+  const child = spawn(process.execPath, [viteBin, "build", "--logLevel", "warn"], {
+    cwd: root,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, NODE_ENV: "production" },
+  });
+  child.stdout.on("data", (d) => process.stdout.write(d));
+  child.stderr.on("data", (d) => process.stderr.write(d));
+  child.on("error", (err) => {
+    buildError = err;
+    console.error("[contentflow] falha ao iniciar o build:", err);
+  });
+  child.on("exit", (code) => {
+    ready = code === 0 && fs.existsSync(indexHtml);
+    if (ready) console.log("[contentflow] build concluído");
+    else {
+      buildError = new Error("build terminou com código " + code);
+      console.error("[contentflow] falha no build (código " + code + ")");
+    }
+  });
 }
 
 const PUBLIC_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_GOOGLE_AUTH_ENABLED"];

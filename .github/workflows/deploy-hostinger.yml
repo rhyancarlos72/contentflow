@@ -1,6 +1,9 @@
-# Gera o build de produção a cada push na main e publica a pasta dist/
-# no branch "hostinger". Na Hostinger (hPanel → Avançado → Git), aponte
-# o repositório para esse branch e ative a implantação automática.
+# A cada push na main:
+# 1. Gera o build de produção.
+# 2. Se a pasta dist/ mudou, envia a versão atualizada para a própria main
+#    (a Hostinger Node.js não roda build: o server.js usa a dist/ do repositório).
+# 3. Publica a dist/ no branch "hostinger" (hospedagem comum via hPanel → Git).
+# Pushes feitos com o GITHUB_TOKEN não disparam este workflow de novo.
 name: Build para Hostinger
 
 on:
@@ -39,6 +42,18 @@ jobs:
           SB_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SB_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           GOOGLE_AUTH: ${{ vars.VITE_GOOGLE_AUTH_ENABLED }}
+
+      - name: Atualizar dist/ na main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A dist
+          if git diff --cached --quiet; then
+            echo "dist/ já está atualizada."
+          else
+            git commit -q -m "Atualiza build (dist/) [skip ci]"
+            git push origin HEAD:main
+          fi
 
       - name: Publicar dist/ no branch hostinger
         run: |
