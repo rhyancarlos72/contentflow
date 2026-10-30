@@ -32,9 +32,16 @@ jobs:
             exit 1
           fi
 
-      - uses: supabase/setup-cli@v1
+      - uses: actions/setup-node@v5
         with:
-          version: latest
+          node-version: 22
+
+      # Versão fixa instalada pelo npm: não depende da API do GitHub (evita
+      # "rate limit exceeded" ao resolver a versão mais recente).
+      - name: Instalar Supabase CLI
+        run: |
+          npm install --global supabase@2.122.0
+          supabase --version
 
       - name: Publicar funções
         # Uma por vez; em caso de erro, o final do log vira anotação no resumo da execução.
