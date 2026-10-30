@@ -50,6 +50,19 @@ if (!ready) {
   });
 }
 
+// Algumas hospedagens (ex.: Hostinger) gravam as variáveis do painel num arquivo
+// .env em vez de passá-las ao processo. Lê os arquivos sem sobrescrever o que já existe.
+for (const file of [".env", ".env.local", ".env.production"]) {
+  const full = path.join(root, file);
+  if (!fs.existsSync(full)) continue;
+  for (const line of fs.readFileSync(full, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m || process.env[m[1]]) continue;
+    const value = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    if (value) process.env[m[1]] = value;
+  }
+}
+
 const PUBLIC_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_GOOGLE_AUTH_ENABLED"];
 const envScript = "window.__ENV__ = " + JSON.stringify(
   Object.fromEntries(PUBLIC_ENV.filter((k) => process.env[k]).map((k) => [k, process.env[k]])),
@@ -68,7 +81,13 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.get("/healthz", (_req, res) => res.json({ ok: true, ready, buildError: buildError ? String(buildError.message || buildError) : null }));
+// Diagnóstico: mostra só SE cada variável chegou, nunca o valor.
+app.get("/healthz", (_req, res) => res.json({
+  ok: true,
+  ready,
+  buildError: buildError ? String(buildError.message || buildError) : null,
+  env: Object.fromEntries(PUBLIC_ENV.map((k) => [k, Boolean(process.env[k])])),
+}));
 
 app.get("/env-config.js", (_req, res) => {
   res.type("application/javascript").set("Cache-Control", "no-store").send(envScript);
