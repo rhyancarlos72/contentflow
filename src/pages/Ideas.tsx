@@ -4,7 +4,8 @@ import { CalendarPlus, ExternalLink, FileText, Lightbulb, Pencil, Plus, Search, 
 import { toast } from "sonner";
 import { emptyPost, PostEditorModal, type PostDraft } from "@/components/PostEditorModal";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { VoiceInput, VoiceTextarea } from "@/components/Voice";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { Badge, Card, Dot, EmptyState, Skeleton } from "@/components/ui/misc";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -174,8 +175,8 @@ function IdeaModal({ idea, categories, onClose }: { idea: Partial<ContentIdea> |
     <Modal open={Boolean(idea)} onClose={onClose} title={draft.id ? "Editar ideia" : "Nova ideia"} size="lg"
       footer={<><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button onClick={save} loading={create.isPending || update.isPending}>Salvar</Button></>}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Título" className="sm:col-span-2"><Input autoFocus value={draft.title ?? ""} onChange={(e) => set("title", e.target.value)} /></Field>
-        <Field label="Descrição" className="sm:col-span-2"><Textarea rows={3} value={draft.description ?? ""} onChange={(e) => set("description", e.target.value)} /></Field>
+        <Field label="Título" className="sm:col-span-2"><VoiceInput autoFocus value={draft.title ?? ""} onValueChange={(v) => set("title", v)} /></Field>
+        <Field label="Descrição" className="sm:col-span-2"><VoiceTextarea rows={3} value={draft.description ?? ""} onValueChange={(v) => set("description", v)} /></Field>
         <Field label="Categoria">
           <Select value={draft.category_id ?? ""} onChange={(e) => set("category_id", e.target.value || null)}>
             <option value="">Sem categoria</option>
@@ -191,7 +192,7 @@ function IdeaModal({ idea, categories, onClose }: { idea: Partial<ContentIdea> |
         <Field label="Nicho"><Input value={draft.niche ?? ""} onChange={(e) => set("niche", e.target.value)} /></Field>
         <Field label="Referência"><Input value={draft.reference ?? ""} onChange={(e) => set("reference", e.target.value)} placeholder="Ex.: perfil @fulano, livro X" /></Field>
         <Field label="Link de inspiração" className="sm:col-span-2"><Input type="url" value={draft.inspiration_url ?? ""} onChange={(e) => set("inspiration_url", e.target.value)} placeholder="https://" /></Field>
-        <Field label="Anotações" className="sm:col-span-2"><Textarea rows={3} value={draft.notes ?? ""} onChange={(e) => set("notes", e.target.value)} /></Field>
+        <Field label="Anotações" className="sm:col-span-2"><VoiceTextarea rows={3} value={draft.notes ?? ""} onValueChange={(v) => set("notes", v)} /></Field>
         {draft.created_at && <p className="text-xs text-ink-faint sm:col-span-2">Criada em {fmtDate(draft.created_at, "dd/MM/yyyy 'às' HH:mm")}</p>}
       </div>
     </Modal>

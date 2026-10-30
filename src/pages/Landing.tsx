@@ -52,7 +52,7 @@ export default function Landing() {
             <Link to="/cadastro"><Button size="lg">Criar conta grátis <ArrowRight className="h-4 w-4" /></Button></Link>
             <Link to="/precos"><Button size="lg" variant="secondary">Ver planos</Button></Link>
           </div>
-          <p className="mt-3 text-xs text-ink-soft">Sem cartão de crédito no plano gratuito.</p>
+          <p className="mt-3 text-xs text-ink-soft">7 dias grátis do plano Pro em toda conta nova · sem cartão de crédito.</p>
         </div>
       </section>
 

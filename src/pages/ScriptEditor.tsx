@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarPlus, Check, Cloud, Copy, CopyPlus, FileDown, Loader2, Timer, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Check, Cloud, Copy, CopyPlus, FileDown, Loader2, MonitorPlay, Timer, Trash2, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { emptyPost, PostEditorModal, type PostDraft } from "@/components/PostEditorModal";
+import { Teleprompter } from "@/components/Teleprompter";
+import { ListeningBar, MicButton, useVoiceAppend } from "@/components/Voice";
+import { speak } from "@/lib/speech";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Card, EmptyState, PageLoader } from "@/components/ui/misc";
@@ -29,6 +32,9 @@ export default function ScriptEditor() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [publishing, setPublishing] = useState<PostDraft | null>(null);
   const lastSaved = useRef<string>("");
+  const [prompter, setPrompter] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const dictation = useVoiceAppend(draft?.content ?? "", (v) => setDraft((d) => (d ? { ...d, content: v } : d)));
 
   useEffect(() => {
     if (script && script.id !== draft?.id) {
@@ -79,6 +85,12 @@ export default function ScriptEditor() {
         <Link to="/roteiros"><Button variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />}>Roteiros</Button></Link>
         <SaveIndicator state={saveState} />
         <div className="ml-auto flex flex-wrap gap-1.5">
+          <Button size="sm" variant="soft" icon={<MonitorPlay className="h-4 w-4" />} onClick={() => setPrompter(true)}>Teleprompter</Button>
+          <Button size="sm" variant="ghost" icon={speaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />} onClick={() => {
+            if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
+            if (speak(draft.content.replace(/\[[^\]]*\]/g, ""), () => setSpeaking(false))) setSpeaking(true);
+            else toast.error("Seu navegador não suporta leitura em voz alta.");
+          }}>{speaking ? "Parar" : "Ouvir"}</Button>
           <Button size="sm" variant="ghost" icon={<Copy className="h-4 w-4" />} onClick={async () => { await copyText(draft.content); toast.success("Texto copiado"); }}>Copiar</Button>
           <Button size="sm" variant="ghost" icon={<FileDown className="h-4 w-4" />} onClick={() => exportScriptPdf({ ...draft, updated_at: new Date().toISOString() })}>PDF</Button>
           <Button size="sm" variant="ghost" icon={<CopyPlus className="h-4 w-4" />} onClick={async () => {
@@ -98,6 +110,13 @@ export default function ScriptEditor() {
         <Card className="p-5 sm:p-8">
           <input value={draft.title} onChange={(e) => set("title", e.target.value)} placeholder="Título do roteiro"
             className="w-full bg-transparent text-2xl font-bold outline-none placeholder:text-ink-faint" aria-label="Título" />
+          {dictation.supported && (
+            <div className="mt-3 flex items-center gap-2">
+              <MicButton listening={dictation.listening} onClick={dictation.toggle} />
+              <span className="text-xs font-semibold text-ink-soft">{dictation.listening ? "Ditando — o texto entra no fim do roteiro" : "Ditar o roteiro por voz"}</span>
+            </div>
+          )}
+          {dictation.listening && <ListeningBar interim={dictation.interim} />}
           <Textarea value={draft.content} onChange={(e) => set("content", e.target.value)} rows={22}
             placeholder={"Comece pelo gancho: a primeira frase que faz a pessoa parar de rolar.\n\nDepois desenvolva, entregue a mensagem central e feche com um CTA."}
             className="prose-script mt-4 min-h-[480px] resize-none border-0 bg-transparent px-0 focus:ring-0" aria-label="Roteiro" />
@@ -138,6 +157,7 @@ export default function ScriptEditor() {
         </div>
       </div>
 
+      {prompter && <Teleprompter text={draft.content} title={draft.title} onClose={() => setPrompter(false)} />}
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Excluir roteiro?"
         onConfirm={async () => { await remove.mutateAsync(draft.id); toast.success("Roteiro excluído"); navigate("/roteiros"); }} />
       <PostEditorModal open={Boolean(publishing)} initial={publishing} onClose={() => setPublishing(null)}

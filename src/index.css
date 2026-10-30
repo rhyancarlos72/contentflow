@@ -43,3 +43,48 @@
 @media print {
   .no-print { display: none !important; }
 }
+
+@keyframes voice { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+
+/* ---------- Identidade visual: aurora, vidro e bordas vivas ---------- */
+@layer components {
+  .aurora {
+    background:
+      radial-gradient(60rem 30rem at 85% -10%, rgba(151,117,222,.20), transparent 60%),
+      radial-gradient(40rem 24rem at -5% 10%, rgba(32,180,134,.10), transparent 60%),
+      radial-gradient(50rem 30rem at 50% 110%, rgba(121,82,214,.10), transparent 60%);
+  }
+  .glass { @apply border border-white/60 bg-white/70 backdrop-blur-xl; }
+  .text-gradient { @apply bg-gradient-to-r from-brand-500 via-[#B05BD8] to-brand-800 bg-clip-text text-transparent; }
+  .glow-border { position: relative; isolation: isolate; }
+  .glow-border::before {
+    content: ""; position: absolute; inset: -1.5px; z-index: -1; border-radius: inherit;
+    background: conic-gradient(from var(--angle), #7952D6, #20B486, #B05BD8, #4F7BE8, #7952D6);
+    animation: spin-angle 6s linear infinite; opacity: .9;
+  }
+  .glow-border::after {
+    content: ""; position: absolute; inset: -12px; z-index: -2; border-radius: inherit;
+    background: conic-gradient(from var(--angle), #7952D6, #20B486, #B05BD8, #4F7BE8, #7952D6);
+    filter: blur(28px); opacity: .22; animation: spin-angle 6s linear infinite;
+  }
+  .orb {
+    background: radial-gradient(circle at 30% 30%, #fff 0, #D3C3F2 18%, #7952D6 45%, #33205F 80%);
+    box-shadow: 0 0 60px rgba(121,82,214,.55), inset -8px -12px 30px rgba(0,0,0,.25);
+    animation: orb-float 3s ease-in-out infinite;
+  }
+  .stagger > * { animation: fade-up .45s cubic-bezier(.2,.8,.2,1) both; }
+  .stagger > *:nth-child(2) { animation-delay: .06s; }
+  .stagger > *:nth-child(3) { animation-delay: .12s; }
+  .stagger > *:nth-child(4) { animation-delay: .18s; }
+  .stagger > *:nth-child(5) { animation-delay: .24s; }
+  .stagger > *:nth-child(n+6) { animation-delay: .3s; }
+}
+
+@property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@keyframes spin-angle { to { --angle: 360deg; } }
+@keyframes orb-float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-6px) scale(1.04); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-border::before, .glow-border::after, .orb, .stagger > * { animation: none !important; }
+}

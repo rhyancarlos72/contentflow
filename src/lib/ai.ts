@@ -12,7 +12,7 @@ export class AiError extends Error {
     this.code = code;
   }
   get needsUpgrade() {
-    return this.code === "plan_feature" || this.code === "monthly_limit";
+    return this.code === "plan_feature" || this.code === "monthly_limit" || this.code === "tool_limit";
   }
 }
 

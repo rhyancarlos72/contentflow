@@ -49,9 +49,10 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen">
+      <div className="aurora pointer-events-none fixed inset-0 -z-10" aria-hidden />
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className={cn("transition-[padding] duration-300", collapsed ? "lg:pl-[78px]" : "lg:pl-[268px]")}>
-        <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-white/85 px-4 backdrop-blur-md sm:gap-3 sm:px-6">
+        <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-white/60 bg-white/70 px-4 backdrop-blur-xl sm:gap-3 sm:px-6">
           <button className="grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-brand-50 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Abrir menu">
             <Menu className="h-5 w-5" />
           </button>

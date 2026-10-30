@@ -7,7 +7,8 @@ import { toISODate } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { CalendarPost, ProductionStage, ProductionTask } from "@/types";
 import { Button } from "./ui/Button";
-import { Field, Input, Select, Textarea } from "./ui/Field";
+import { VoiceInput, VoiceTextarea } from "./Voice";
+import { Field, Input, Select } from "./ui/Field";
 import { ConfirmDialog, Modal } from "./ui/Modal";
 
 export type PostDraft = Partial<CalendarPost>;
@@ -107,7 +108,7 @@ export function PostEditorModal({ open, onClose, initial, onSaved }: {
         }>
         <div className="grid gap-4 sm:grid-cols-6">
           <Field label="Título" className="sm:col-span-6">
-            <Input autoFocus value={draft.title ?? ""} onChange={(e) => set("title", e.target.value)} placeholder="Sobre o que é esta publicação?" />
+            <VoiceInput autoFocus value={draft.title ?? ""} onValueChange={(v) => set("title", v)} placeholder="Sobre o que é esta publicação?" />
           </Field>
           <Field label="Data" className="sm:col-span-2">
             <Input type="date" value={draft.scheduled_date ?? ""} onChange={(e) => set("scheduled_date", e.target.value)} />
@@ -141,13 +142,13 @@ export function PostEditorModal({ open, onClose, initial, onSaved }: {
             <Input value={draft.strategic_goal ?? ""} onChange={(e) => set("strategic_goal", e.target.value)} placeholder="Ex.: gerar salvamentos e mostrar autoridade" />
           </Field>
           <Field label="Gancho inicial" className="sm:col-span-6">
-            <Input value={draft.hook ?? ""} onChange={(e) => set("hook", e.target.value)} placeholder="A primeira frase que prende a atenção" />
+            <VoiceInput value={draft.hook ?? ""} onValueChange={(v) => set("hook", v)} placeholder="A primeira frase que prende a atenção" />
           </Field>
           <Field label="Roteiro ou estrutura" className="sm:col-span-6">
-            <Textarea rows={5} value={draft.script_outline ?? ""} onChange={(e) => set("script_outline", e.target.value)} />
+            <VoiceTextarea rows={5} value={draft.script_outline ?? ""} onValueChange={(v) => set("script_outline", v)} />
           </Field>
           <Field label="Legenda" className="sm:col-span-6">
-            <Textarea rows={4} value={draft.caption ?? ""} onChange={(e) => set("caption", e.target.value)} />
+            <VoiceTextarea rows={4} value={draft.caption ?? ""} onValueChange={(v) => set("caption", v)} />
           </Field>
           <Field label="CTA" className="sm:col-span-3">
             <Input value={draft.cta ?? ""} onChange={(e) => set("cta", e.target.value)} placeholder="Ex.: Salve para consultar depois" />
@@ -156,7 +157,7 @@ export function PostEditorModal({ open, onClose, initial, onSaved }: {
             <Input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="#financas #investimentos" />
           </Field>
           <Field label="Anotações" className="sm:col-span-6">
-            <Textarea rows={2} value={draft.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
+            <VoiceTextarea rows={2} value={draft.notes ?? ""} onValueChange={(v) => set("notes", v)} />
           </Field>
         </div>
       </Modal>

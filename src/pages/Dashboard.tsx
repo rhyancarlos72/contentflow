@@ -12,6 +12,7 @@ import { emptyPost, PostEditorModal, type PostDraft } from "@/components/PostEdi
 import { Button } from "@/components/ui/Button";
 import { Badge, Card, CardHeader, Dot, EmptyState, ProgressBar, Skeleton, Tabs } from "@/components/ui/misc";
 import { UpgradeCard } from "@/components/UpgradeGate";
+import { QuickCreate } from "@/components/QuickCreate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AiError, generate, type SuggestionsResult } from "@/lib/ai";
@@ -50,7 +51,8 @@ function useDashboardData(projectId: string) {
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const { project, projectId, hasFeature } = useWorkspace();
+  const { project, projectId, hasFeature, plan } = useWorkspace();
+  const trialDays = plan?.trial_ends_at ? Math.max(0, Math.ceil((new Date(plan.trial_ends_at).getTime() - Date.now()) / 86_400_000)) : null;
   const { data, isLoading } = useDashboardData(projectId);
   const [range, setRange] = useState<Range>("7");
   const [editing, setEditing] = useState<PostDraft | null>(null);
@@ -132,12 +134,18 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="page-title">{greeting}{firstName ? `, ${firstName}` : ""} 👋</h1>
-          <p className="page-subtitle">Aqui está o panorama de <strong className="text-ink">{project?.name}</strong>.</p>
+      <h1 className="sr-only">Dashboard</h1>
+      {trialDays !== null && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-white px-5 py-3">
+          <Sparkles className="h-5 w-5 text-brand-500" />
+          <p className="flex-1 text-sm"><strong>Teste grátis do Pro:</strong> {trialDays === 0 ? "termina hoje" : `${trialDays} dia${trialDays === 1 ? "" : "s"} restante${trialDays === 1 ? "" : "s"}`}. Tudo liberado, incluindo planejamento de 30 dias.</p>
+          <Link to="/precos"><Button size="sm">Ver planos</Button></Link>
         </div>
-        <Button size="lg" icon={<Plus className="h-5 w-5" />} onClick={() => setEditing({})} data-tour="create">Criar novo conteúdo</Button>
+      )}
+      <QuickCreate greeting={`${greeting}${firstName ? `, ${firstName}` : ""} 👋`} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-soft">Panorama de <strong className="text-ink">{project?.name}</strong></p>
+        <Button icon={<Plus className="h-4 w-4" />} variant="secondary" onClick={() => setEditing({})} data-tour="create">Criar novo conteúdo</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">

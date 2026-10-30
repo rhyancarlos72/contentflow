@@ -12,7 +12,7 @@ import type { PlanTier } from "@/types";
 
 export const PLANS: { id: PlanTier; name: string; price: number; tagline: string; highlights: string[] }[] = [
   { id: "free", name: "Gratuito", price: 0, tagline: "Para começar com organização",
-    highlights: ["1 projeto", "Calendário editorial", "Banco de ideias", "20 gerações de IA/mês", "Criação manual de roteiros"] },
+    highlights: ["1 projeto", "Calendário editorial", "Banco de ideias", "20 gerações de IA/mês", "5 roteiros com IA por mês", "Ditado por voz e teleprompter"] },
   { id: "creator", name: "Creator", price: 19.9, tagline: "Para quem publica toda semana",
     highlights: ["Até 3 projetos", "Planejamento inteligente (7 e 15 dias)", "150 gerações de IA/mês", "Gerador de roteiros", "Legendas e CTAs", "Analytics manual", "Biblioteca de conteúdo"] },
   { id: "pro", name: "Pro", price: 39.9, tagline: "Para profissionais e agências",
@@ -28,7 +28,8 @@ const ROWS: [string, (string | boolean)[]][] = [
   ["Roteiros manuais", [true, true, true]],
   ["Ideias, ganchos e hashtags com IA", [true, true, true]],
   ["Planejamento inteligente", [false, "7 e 15 dias", "7, 15 e 30 dias"]],
-  ["Gerador de roteiros com IA", [false, true, true]],
+  ["Gerador de roteiros com IA", ["5/mês", "Ilimitado*", "Ilimitado*"]],
+  ["Ditado por voz e teleprompter", [true, true, true]],
   ["Legendas e CTAs com IA", [false, true, true]],
   ["Analytics manual", [false, true, true]],
   ["Análise de resultados com IA", [false, true, true]],
@@ -62,7 +63,7 @@ export default function Pricing() {
       <main className="mx-auto max-w-6xl px-5 pb-20 pt-8">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold sm:text-5xl">Planos simples, sem surpresa</h1>
-          <p className="mx-auto mt-3 max-w-xl text-ink-soft">Comece grátis. Faça upgrade quando precisar de mais estratégia e produtividade. Cancele quando quiser.</p>
+          <p className="mx-auto mt-3 max-w-xl text-ink-soft">Toda conta nova ganha <strong className="text-brand-700">7 dias grátis do plano Pro</strong>, sem cartão. Depois, continue no gratuito ou escolha um plano. Cancele quando quiser.</p>
         </div>
         <div className="mt-12 grid gap-5 lg:grid-cols-3">
           {PLANS.map((p) => {
@@ -106,7 +107,7 @@ export default function Pricing() {
             </tbody>
           </table>
         </div>
-        <p className="mt-6 text-center text-xs text-ink-soft">Pagamento recorrente mensal em reais. Os recursos premium são liberados automaticamente após a confirmação do pagamento.</p>
+        <p className="mt-6 text-center text-xs text-ink-soft">Pagamento recorrente mensal em reais. Os recursos premium são liberados automaticamente após a confirmação do pagamento. *Dentro do total de gerações de IA do plano.</p>
       </main>
     </div>
   );

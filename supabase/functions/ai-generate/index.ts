@@ -476,6 +476,16 @@ serve(async (req) => {
     throw new HttpError(429, "monthly_limit",
       `Você usou as ${plan.monthly_ai_generations} gerações de IA do mês. Faça upgrade ou aguarde o próximo mês.`);
   }
+  const toolLimit = Number(plan.tool_limits?.[tool] ?? 0);
+  if (toolLimit > 0) {
+    const { count, error } = await admin.from("ai_usage").select("id", { count: "exact", head: true })
+      .eq("user_id", user.id).eq("tool", tool).eq("success", true).gte("created_at", monthStart.toISOString());
+    if (error) throw error;
+    if ((count ?? 0) >= toolLimit) {
+      throw new HttpError(429, "tool_limit",
+        `Você usou os ${toolLimit} roteiros com IA do plano gratuito neste mês. Assine o Creator para gerar sem esse limite.`);
+    }
+  }
   if ((recent.count ?? 0) >= PER_MINUTE_LIMIT) {
     throw new HttpError(429, "rate_limited", "Muitas gerações seguidas. Aguarde um minuto.");
   }

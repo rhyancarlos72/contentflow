@@ -8,8 +8,10 @@ insert into auth.users (id, email, raw_user_meta_data) values
 
 do $$ begin
   assert (select count(*) from profiles) = 2, 'perfis criados pelo gatilho';
-  assert (select count(*) from subscriptions where plan = 'free') = 2, 'assinaturas gratuitas criadas';
+  assert (select count(*) from subscriptions where status = 'trialing') = 2, 'assinaturas em teste criadas';
 end $$;
+-- Os testes abaixo partem do plano gratuito (teste grátis encerrado).
+update subscriptions set plan = 'free', status = 'active', current_period_end = null;
 
 -- Usuário A
 set local role authenticated;
@@ -99,6 +101,8 @@ rollback;
 -- Recursos premium bloqueados no plano gratuito
 begin;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000c', 'c@test.dev');
+update subscriptions set plan = 'free', status = 'active', current_period_end = null
+ where user_id = '00000000-0000-0000-0000-00000000000c';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true);
 insert into projects (id, user_id, name) values
@@ -120,3 +124,23 @@ values ('00000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-0000000
 do $$ begin assert (select engagement_rate from analytics) = 10.00, 'taxa de engajamento calculada'; end $$;
 rollback;
 \echo 'PLAN_TESTS_PASSED'
+
+-- Teste grátis de 7 dias e limite de roteiros no gratuito
+begin;
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000d', 'd@test.dev');
+do $$ begin
+  assert effective_plan('00000000-0000-0000-0000-00000000000d') = 'pro', 'conta nova começa no teste Pro';
+end $$;
+update subscriptions set current_period_end = now() - interval '1 minute' where user_id = '00000000-0000-0000-0000-00000000000d';
+do $$ begin
+  assert effective_plan('00000000-0000-0000-0000-00000000000d') = 'free', 'teste vencido volta ao gratuito';
+  assert (select 'ai_scripts' = any(features) and (tool_limits ->> 'script')::int = 5 from plan_limits where plan = 'free'), 'roteiros limitados no gratuito';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', true);
+do $$ begin
+  assert (my_plan_status() ->> 'trial_ends_at') is null, 'sem teste ativo';
+  assert (my_plan_status() -> 'tool_usage') is not null, 'uso por ferramenta';
+end $$;
+rollback;
+\echo 'TRIAL_TESTS_PASSED'

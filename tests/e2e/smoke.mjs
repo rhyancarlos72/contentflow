@@ -51,10 +51,12 @@ const fx = {
 
 const planStatus = { plan: "pro", limits: { plan: "pro", max_projects: 15, monthly_ai_generations: 600, max_plan_days: 30,
   features: ["calendar", "ideas_bank", "manual_scripts", "ai_ideas", "ai_hooks", "ai_hashtags", "ai_suggestions", "ai_plan", "ai_scripts", "ai_captions", "ai_cta", "analytics_manual", "library", "ai_analytics", "advanced_memory", "advanced_analytics", "reports"] },
-  ai_used_this_month: 12, projects_count: 1, subscription: { plan: "pro", status: "active", current_period_end: d(20), cancel_at_period_end: false, provider: "stripe" } };
+  ai_used_this_month: 12, tool_usage: { script: 2 }, trial_ends_at: d(5), projects_count: 1, subscription: { plan: "pro", status: "active", current_period_end: d(20), cancel_at_period_end: false, provider: "stripe" } };
 
 const aiFixtures = {
   suggestions: { ideas: [{ title: "Quanto custa seu cafezinho por ano", format: "Reels", pillar: "educativo", why: "Lacuna de conteúdo leve" }], recommendations: [{ title: "Equilibre pilares", detail: "Mais emocionais." }] },
+  script: { title: "3 hábitos que esvaziam sua conta", hook: "Você não gasta muito. Você gasta sem ver.", development: "Primeiro…", core_message: "Controle vem de visibilidade.",
+    conclusion: "Comece hoje.", cta: "Salve este vídeo.", full_script: "Você não gasta muito.\nVocê gasta sem ver.\n[corte]\nPrimeiro hábito…", estimated_seconds: 31, recording_tips: ["Grave com luz natural"] },
   ideas: { ideas: [{ title: "Orçamento 50/30/20 na prática", type: "carrossel", approach: "Exemplo com salário real", audience: "CLT iniciante", objective: "Salvamentos" }] },
 };
 
@@ -120,9 +122,29 @@ for (const viewport of [{ width: 1440, height: 900, name: "desktop" }, { width: 
     await page.getByPlaceholder("Buscar publicações").waitFor();
     await page.keyboard.press("Escape");
     await page.goto(BASE + "/estudio");
-    await page.getByPlaceholder(/organização financeira/).fill("orçamento doméstico");
-    await page.getByRole("button", { name: "Gerar com IA" }).click();
+    await page.getByRole("button", { name: "Ideias", exact: true }).click();
+    await page.getByLabel("Assunto").fill("orçamento doméstico");
+    await page.getByRole("button", { name: "Gerar ideias" }).click();
     await page.getByText("Orçamento 50/30/20 na prática").waitFor({ timeout: 4000 });
+    // Criação rápida do Dashboard → Estúdio já gerando o roteiro
+    await page.goto(BASE + "/app");
+    await page.getByLabel("Assunto").fill("gastos invisíveis");
+    await page.getByRole("button", { name: "Roteiro", exact: true }).click();
+    await page.getByText("3 hábitos que esvaziam sua conta").waitFor({ timeout: 5000 });
+    await page.screenshot({ path: `${OUT}/desktop_estudio_roteiro.png`, fullPage: true });
+    // "Virar roteiro" a partir de uma ideia (navegação dentro do próprio Estúdio)
+    await page.getByRole("button", { name: "Ideias", exact: true }).click();
+    await page.getByLabel("Assunto").fill("orçamento");
+    await page.getByRole("button", { name: "Gerar ideias" }).click();
+    await page.getByRole("button", { name: "Virar roteiro" }).first().click();
+    await page.getByText("3 hábitos que esvaziam sua conta").waitFor({ timeout: 5000 });
+    // Teleprompter
+    await page.goto(BASE + "/roteiros/s1");
+    await page.getByRole("button", { name: "Teleprompter" }).click();
+    await page.getByRole("dialog", { name: "Teleprompter" }).waitFor();
+    await page.screenshot({ path: `${OUT}/desktop_teleprompter.png` });
+    await page.keyboard.press("Escape");
+    await page.goto(BASE + "/estudio");
     await page.screenshot({ path: `${OUT}/desktop_estudio_resultado.png`, fullPage: true });
   }
   await ctx.close();

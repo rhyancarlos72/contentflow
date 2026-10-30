@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Brain, Check, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
-import { Chips, Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { VoiceTextarea } from "@/components/Voice";
+import { Chips, Field, Input, Select } from "@/components/ui/Field";
 import { Badge, Card, Dot, EmptyState } from "@/components/ui/misc";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -170,12 +171,12 @@ function ProjectModal({ project, onClose, onSaved }: { project: Partial<Project>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome"><Input autoFocus value={draft.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="Ex.: Clínica Sorriso" /></Field>
         <Field label="Tipo"><Select value={draft.kind} onChange={(e) => set("kind", e.target.value)}>{PROJECT_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</Select></Field>
-        <Field label="Descrição" className="sm:col-span-2"><Textarea rows={2} value={draft.description ?? ""} onChange={(e) => set("description", e.target.value)} /></Field>
+        <Field label="Descrição" className="sm:col-span-2"><VoiceTextarea rows={2} value={draft.description ?? ""} onValueChange={(v) => set("description", v)} /></Field>
         <Field label="Nicho"><Input value={draft.niche ?? ""} onChange={(e) => set("niche", e.target.value)} /></Field>
         <Field label="Publicações por semana"><Input type="number" min={0} max={50} value={draft.posts_per_week ?? 3} onChange={(e) => set("posts_per_week", Number(e.target.value))} /></Field>
-        <Field label="Público" className="sm:col-span-2"><Textarea rows={2} value={draft.audience ?? ""} onChange={(e) => set("audience", e.target.value)} /></Field>
+        <Field label="Público" className="sm:col-span-2"><VoiceTextarea rows={2} value={draft.audience ?? ""} onValueChange={(v) => set("audience", v)} /></Field>
         <Field label="Identidade de comunicação" className="sm:col-span-2" hint="Como esta marca fala. A IA segue isso em todas as gerações.">
-          <Textarea rows={2} value={draft.voice ?? ""} onChange={(e) => set("voice", e.target.value)} placeholder="Ex.: acolhedora, técnica sem ser fria, usa “você”, sem gírias" />
+          <VoiceTextarea rows={2} value={draft.voice ?? ""} onValueChange={(v) => set("voice", v)} placeholder="Ex.: acolhedora, técnica sem ser fria, usa “você”, sem gírias" />
         </Field>
         <Field label="Plataformas" className="sm:col-span-2"><Chips multiple options={PLATFORMS} value={draft.platforms ?? []} onChange={(v) => set("platforms", v)} /></Field>
         <Field label="Objetivos" className="sm:col-span-2"><Chips multiple options={GOALS.map((g) => ({ value: g, label: g }))} value={draft.goals ?? []} onChange={(v) => set("goals", v)} /></Field>

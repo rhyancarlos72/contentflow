@@ -33,6 +33,8 @@ export interface PlanInfo {
   monthly_ai_generations: number;
   max_plan_days: number;
   features: string[];
+  /** Limite mensal por ferramenta (ex.: { script: 5 } no gratuito). */
+  tool_limits?: Record<string, number>;
 }
 
 /** Plano efetivo validado no banco (assinatura ativa e dentro do período). */

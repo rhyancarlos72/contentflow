@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
 import {
-  CalendarPlus, Check, ChevronDown, Copy, History, Lock, Pencil, Plus, Sparkles, Target, Trash2, Wand2,
+  CalendarPlus, Check, ChevronDown, Copy, History, Lock, Pencil, Plus, Target, Trash2, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
-import { Chips, Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { VoiceTextarea } from "@/components/Voice";
+import { Chips, Field, Input, Select } from "@/components/ui/Field";
 import { Badge, Card, Dot, EmptyState, Spinner } from "@/components/ui/misc";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { UpgradeGate } from "@/components/UpgradeGate";
@@ -146,7 +147,7 @@ function PlanningWorkspace() {
                 <Field label="Posts/semana"><Input type="number" min={1} max={14} value={briefing.posts_per_week} onChange={(e) => set("posts_per_week", Number(e.target.value))} /></Field>
               </div>
               <Field label="Nicho de atuação"><Input value={briefing.niche} onChange={(e) => set("niche", e.target.value)} /></Field>
-              <Field label="Público-alvo"><Textarea rows={3} value={briefing.audience} onChange={(e) => set("audience", e.target.value)} /></Field>
+              <Field label="Público-alvo"><VoiceTextarea rows={3} value={briefing.audience} onValueChange={(v) => set("audience", v)} /></Field>
               <Field label="Objetivo principal">
                 <Select value={briefing.goal} onChange={(e) => set("goal", e.target.value)}>
                   {GOALS.map((g) => <option key={g}>{g}</option>)}
@@ -155,8 +156,8 @@ function PlanningWorkspace() {
               <Field label="Redes sociais"><Chips multiple options={PLATFORMS} value={briefing.platforms} onChange={(v) => set("platforms", v)} /></Field>
               <Field label="Formatos preferidos"><Chips multiple options={FORMATS} value={briefing.formats} onChange={(v) => set("formats", v)} /></Field>
               <Field label="Estilo de comunicação"><Chips options={TONES} value={[briefing.style]} onChange={(v) => set("style", v[0] ?? "natural")} /></Field>
-              <Field label="Temas que deseja abordar"><Textarea rows={2} value={briefing.themes} onChange={(e) => set("themes", e.target.value)} placeholder="Ex.: reserva de emergência, primeiros investimentos" /></Field>
-              <Field label="Temas que deseja evitar"><Textarea rows={2} value={briefing.avoid} onChange={(e) => set("avoid", e.target.value)} placeholder="Ex.: criptomoedas, política" /></Field>
+              <Field label="Temas que deseja abordar"><VoiceTextarea rows={2} value={briefing.themes} onValueChange={(v) => set("themes", v)} placeholder="Ex.: reserva de emergência, primeiros investimentos" /></Field>
+              <Field label="Temas que deseja evitar"><VoiceTextarea rows={2} value={briefing.avoid} onValueChange={(v) => set("avoid", v)} placeholder="Ex.: criptomoedas, política" /></Field>
               <Button size="lg" className="w-full" icon={<Wand2 className="h-4 w-4" />} loading={generating} onClick={run}>
                 {generating ? "Criando estratégia…" : "Gerar planejamento"}
               </Button>
@@ -193,8 +194,18 @@ function PlanningWorkspace() {
             </div>
           </Card>
         ) : !active ? (
-          <Card><EmptyState icon={<Sparkles className="h-6 w-6" />} title="Seu primeiro planejamento começa aqui"
-            description="Preencha o briefing ao lado. A IA usa a memória do projeto para respeitar seu tom e evitar repetições." /></Card>
+          <div className="relative overflow-hidden rounded-3xl bg-[#13102A] px-8 py-12 text-center text-white">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full bg-brand-500/40 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-64 w-64 rounded-full bg-[#20B486]/20 blur-3xl" />
+            <div className="relative">
+              <div className="orb mx-auto h-16 w-16 rounded-full" />
+              <h2 className="mt-6 text-2xl font-extrabold">Sua estratégia em um clique</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-white/65">
+                Já preenchemos o briefing com os dados de <strong className="text-white">{project?.name}</strong>. Ajuste ao lado se quiser — ou gere agora.
+              </p>
+              <Button size="lg" className="mt-6" icon={<Wand2 className="h-4 w-4" />} onClick={run}>Gerar meu planejamento de {briefing.days} dias</Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             <Card className="p-5">
@@ -323,8 +334,8 @@ function PlanItemModal({ item, onClose, onSave }: { item: PlanItem | null; onClo
         <Field label="Pilar"><Select value={draft.pillar} onChange={(e) => set("pillar", e.target.value as PlanItem["pillar"])}>{PILLARS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</Select></Field>
         <Field label="Objetivo estratégico" className="sm:col-span-3"><Input value={draft.strategic_goal} onChange={(e) => set("strategic_goal", e.target.value)} /></Field>
         <Field label="Gancho" className="sm:col-span-3"><Input value={draft.hook} onChange={(e) => set("hook", e.target.value)} /></Field>
-        <Field label="Roteiro / estrutura" className="sm:col-span-3"><Textarea rows={6} value={draft.script} onChange={(e) => set("script", e.target.value)} /></Field>
-        <Field label="Legenda" className="sm:col-span-3"><Textarea rows={4} value={draft.caption} onChange={(e) => set("caption", e.target.value)} /></Field>
+        <Field label="Roteiro / estrutura" className="sm:col-span-3"><VoiceTextarea rows={6} value={draft.script} onValueChange={(v) => set("script", v)} /></Field>
+        <Field label="Legenda" className="sm:col-span-3"><VoiceTextarea rows={4} value={draft.caption} onValueChange={(v) => set("caption", v)} /></Field>
         <Field label="CTA" className="sm:col-span-3"><Input value={draft.cta} onChange={(e) => set("cta", e.target.value)} /></Field>
         <Field label="Hashtags" className="sm:col-span-3"><Input value={tags} onChange={(e) => setTags(e.target.value)} /></Field>
       </div>

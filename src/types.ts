@@ -69,12 +69,15 @@ export interface PlanLimits {
   monthly_ai_generations: number;
   max_plan_days: number;
   features: string[];
+  tool_limits?: Record<string, number>;
 }
 
 export interface PlanStatus {
   plan: PlanTier;
   limits: PlanLimits;
   ai_used_this_month: number;
+  tool_usage?: Record<string, number>;
+  trial_ends_at?: string | null;
   projects_count: number;
   subscription: {
     plan: PlanTier;
