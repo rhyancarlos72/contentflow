@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { HttpError, requireEnv } from "./http.ts";
 
-export const AI_MODEL = Deno.env.get("AI_MODEL") ?? "claude-opus-5-5";
+const CLAUDE_MODEL = Deno.env.get("AI_MODEL") ?? "claude-opus-5-5";
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
@@ -11,23 +11,7 @@ function getClient(): Anthropic {
   return client;
 }
 
-export type Effort = "low" | "medium" | "high";
-
-export interface GenerateOptions {
-  system: string;
-  context: string;
-  prompt: string;
-  schema: Record<string, unknown>;
-  maxTokens: number;
-  effort: Effort;
-}
-
-export interface GenerateResult<T> {
-  data: T;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-}
+import type { GenerateOptions, GenerateResult } from "./ai.ts";
 
 /**
  * Gera uma resposta estruturada (JSON validado pelo schema).
@@ -35,12 +19,12 @@ export interface GenerateResult<T> {
  * - O contexto do projeto (memória, histórico) vem em seguida, por ser variável.
  * - Fallback de servidor ativado: se o modelo recusar, a API reprocessa em outro modelo.
  */
-export async function generateStructured<T>(opts: GenerateOptions): Promise<GenerateResult<T>> {
+export async function generateWithClaude<T>(opts: GenerateOptions): Promise<GenerateResult<T>> {
   const anthropic = getClient();
   let message: Anthropic.Beta.BetaMessage;
   try {
     const stream = anthropic.beta.messages.stream({
-      model: AI_MODEL,
+      model: CLAUDE_MODEL,
       max_tokens: opts.maxTokens,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",

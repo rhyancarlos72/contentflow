@@ -3,7 +3,7 @@
 // minuto, monta o contexto do projeto (memória isolada por projeto + histórico
 // para evitar repetição), chama o Claude e registra o consumo.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateStructured, type Effort } from "../_shared/claude.ts";
+import { generateStructured, type Effort } from "../_shared/ai.ts";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { admin, authenticate, getPlan, type PlanInfo } from "../_shared/supabase.ts";
 import {

@@ -53,7 +53,11 @@ tests/e2e/smoke.mjs       Smoke test visual de todas as telas (Playwright)
 - Notificações: o cliente só pode alterar `read_at`.
 
 ### IA
-Modelo padrão `claude-opus-5-5` (troque com o secret `AI_MODEL`), saídas em JSON validadas por schema (structured outputs), streaming, prompt de sistema cacheado e **fallback de servidor** ativado (`fallbacks: "default"`) para recusas. O esforço (`effort`) é baixo para tarefas curtas e médio para roteiros, planos e análises — é a principal alavanca de custo.
+Dois provedores, escolhidos pelo secret `AI_PROVIDER` (sem ele, usa o Gemini se `GEMINI_API_KEY` existir):
+- **Google Gemini** (`gemini`): tem plano gratuito na API. Chave em https://aistudio.google.com/apikey. Modelo padrão `gemini-flash-latest` (troque com `GEMINI_MODEL`). O plano gratuito tem limite de requisições por minuto/dia e o Google pode usar o conteúdo enviado para melhorar seus produtos; com faturamento ativo, isso deixa de acontecer.
+- **Claude** (`anthropic`): pago. Modelo padrão `claude-opus-5-5` (troque com `AI_MODEL`), com fallback de servidor para recusas.
+
+Nos dois, a resposta vem em JSON validado por schema, a chave fica só no servidor e os limites mensais por plano continuam valendo.
 
 ## Como rodar
 
