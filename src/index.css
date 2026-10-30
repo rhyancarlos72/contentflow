@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+  ::selection { @apply bg-brand-200 text-brand-900; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-400 ring-offset-2 ring-offset-canvas; }
+}
+
+@layer components {
+  .card { @apply rounded-2xl border border-line bg-white shadow-card; }
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint
+           transition focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-canvas disabled:text-ink-soft;
+  }
+  .label { @apply mb-1.5 block text-[13px] font-semibold text-ink; }
+  .hint { @apply mt-1 text-xs text-ink-soft; }
+  .page-title { @apply text-2xl font-bold text-ink sm:text-[28px]; }
+  .page-subtitle { @apply mt-1 text-sm text-ink-soft; }
+  .chip {
+    @apply inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5
+           text-[13px] font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700;
+  }
+  .chip-active { @apply border-brand-500 bg-brand-50 text-brand-700; }
+  .skeleton { @apply relative overflow-hidden rounded-lg bg-line/70; }
+  .skeleton::after {
+    content: ""; @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: #D3C3F2 transparent; }
+  .prose-script { @apply whitespace-pre-wrap text-[15px] leading-7 text-ink; }
+}
+
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+@media print {
+  .no-print { display: none !important; }
+}
