@@ -1,15 +1,10 @@
-# Publica as Edge Functions (IA, pagamentos, conta, e-mails) no Supabase sempre
-# que algo em supabase/functions mudar na main — ou manualmente em Actions.
+# Publica as Edge Functions no Supabase manualmente (Actions → Run workflow).
+# O projeto já tem a integração Supabase ↔ GitHub, que aplica migrações e
+# publica as funções a cada push na main; use este workflow só como reserva.
 # Requer o secret SUPABASE_ACCESS_TOKEN (Supabase → Account → Access Tokens).
 name: Publicar funções no Supabase
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "supabase/functions/**"
-      - "supabase/config.toml"
-      - ".github/workflows/deploy-supabase-functions.yml"
   workflow_dispatch:
 
 concurrency:
