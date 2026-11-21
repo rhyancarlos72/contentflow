@@ -8,7 +8,8 @@ import { friendlyError, supabase } from "./supabase";
 
 export type ProjectTable =
   | "calendar_posts" | "content_ideas" | "idea_categories" | "scripts" | "script_folders"
-  | "production_tasks" | "analytics" | "ai_memory" | "library_items" | "content_plans" | "social_accounts";
+  | "production_tasks" | "analytics" | "ai_memory" | "library_items" | "content_plans" | "social_accounts"
+  | "content_analyses";
 
 interface ListOptions {
   order?: string;

@@ -438,3 +438,9 @@ verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = true
+
+[functions.push]
+verify_jwt = true
+
+[functions.link-preview]
+verify_jwt = true

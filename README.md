@@ -107,6 +107,22 @@ O workflow `.github/workflows/deploy-hostinger.yml` gera o build a cada push na 
 ### Nos dois casos
 No Supabase, use o seu domínio em **Authentication → URL Configuration** (Site URL e redirecionamentos `/redefinir-senha` e `/app`) e em `APP_URL`/`APP_ORIGIN` das Edge Functions. O backend (banco, login, IA e pagamentos) continua no Supabase.
 
+## Notificações push (iPhone, Android, computador)
+O app é um PWA (`public/manifest.webmanifest`, `public/sw.js`). Em Configurações → Notificações a pessoa ativa os lembretes no aparelho; no iPhone é preciso instalar o app na Tela de Início (iOS 16.4+). As chaves VAPID são geradas pelo próprio servidor na primeira ativação e guardadas em `public.app_secrets` (sem acesso para o cliente). O envio roda a cada hora via `pg_cron` + `pg_net`, chamando a função `send-notification-emails` com a senha `app_secrets.cron_secret`:
+
+```sql
+select cron.schedule('contentflow-dispatch', '7 * * * *', $$
+  select net.http_post(
+    url := 'https://SEU_REF.supabase.co/functions/v1/send-notification-emails',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select value from public.app_secrets where key = 'cron_secret')),
+    body := '{}'::jsonb)
+$$);
+```
+
+## Análise de conteúdo
+Em `/analise` a pessoa cola o link de um Reels/TikTok/Short/post. A função `link-preview` lê o que é público (oEmbed do TikTok/YouTube, metatags Open Graph; no Instagram, legenda, curtidas e comentários quando visíveis), com proteção contra SSRF. A IA avalia legenda, fala/roteiro (colado ou ditado), capa (miniatura ou print enviado) e métricas informadas, e devolve notas por critério, pontos fortes, melhorias e versões reescritas para o público-alvo. O vídeo e o áudio em si não são acessíveis pelas redes sem integração oficial.
+
 ## Testes
 
 ```bash

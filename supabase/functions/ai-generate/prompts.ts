@@ -76,6 +76,23 @@ export const SCHEMAS = {
     next_steps: arr(str),
     data_caveats: str,
   }),
+  content_review: obj({
+    summary: str,
+    overall_score: int,
+    audience_fit: obj({ score: int, analysis: str, who_it_reaches: str, who_it_should_reach: str }),
+    scores: arr(obj({
+      criterion: enumOf(["gancho", "clareza", "naturalidade", "valor_entregue", "adequacao_ao_publico", "cta", "legenda", "capa_visual", "hashtags"]),
+      score: int,
+      comment: str,
+    })),
+    strengths: arr(obj({ title: str, detail: str })),
+    improvements: arr(obj({ title: str, problem: str, suggestion: str, example: str })),
+    rewrites: obj({ hooks: arr(str), opening_script: str, caption: str, cta: str, hashtags: arr(str) }),
+    natural_language_tips: arr(str),
+    metrics_reading: str,
+    next_content_ideas: arr(obj({ title: str, why: str })),
+    data_caveats: str,
+  }),
   topics: obj({
     topics: arr(obj({ title: str, angle: str, pillar: enumOf(PILLARS), format: str, hook: str })),
   }),

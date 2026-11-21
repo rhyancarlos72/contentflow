@@ -12,6 +12,7 @@ import { emptyPost, PostEditorModal, type PostDraft } from "@/components/PostEdi
 import { Button } from "@/components/ui/Button";
 import { Badge, Card, CardHeader, Dot, EmptyState, ProgressBar, Skeleton, Tabs } from "@/components/ui/misc";
 import { UpgradeCard } from "@/components/UpgradeGate";
+import { PushPrompt } from "@/components/PushSetup";
 import { QuickCreate } from "@/components/QuickCreate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -142,6 +143,7 @@ export default function Dashboard() {
           <Link to="/precos"><Button size="sm">Ver planos</Button></Link>
         </div>
       )}
+      <PushPrompt />
       <QuickCreate greeting={`${greeting}${firstName ? `, ${firstName}` : ""} 👋`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-soft">Panorama de <strong className="text-ink">{project?.name}</strong></p>

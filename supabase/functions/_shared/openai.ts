@@ -36,7 +36,15 @@ export async function generateWithOpenAI<T>(opts: GenerateOptions): Promise<Gene
     response = await getClient().responses.create({
       model: OPENAI_MODEL,
       instructions: `${opts.system}\n\n${opts.context}`,
-      input: opts.prompt,
+      input: opts.images?.length
+        ? [{
+          role: "user",
+          content: [
+            { type: "input_text", text: opts.prompt },
+            ...opts.images.map((img) => ({ type: "input_image" as const, image_url: `data:${img.mediaType};base64,${img.data}`, detail: "auto" as const })),
+          ],
+        }]
+        : opts.prompt,
       max_output_tokens: opts.maxTokens,
       reasoning: { effort: opts.effort },
       text: { format: { type: "json_schema", name: "resultado", schema: opts.schema, strict: true } },

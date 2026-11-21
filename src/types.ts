@@ -20,6 +20,7 @@ export type Pillar = "educativo" | "emocional" | "informativo" | "entretenimento
 export interface NotificationPrefs {
   in_app: boolean;
   email: boolean;
+  push?: boolean;
   whatsapp: boolean;
   recording_reminders: boolean;
   scheduled_posts: boolean;

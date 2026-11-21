@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 
 export type AiTool =
   | "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags"
-  | "plan" | "analytics_insights" | "suggestions" | "topics";
+  | "plan" | "analytics_insights" | "suggestions" | "topics" | "content_review";
 
 export class AiError extends Error {
   code: string;
@@ -58,4 +58,18 @@ export interface SuggestionsResult {
 }
 export interface TopicsResult {
   topics: { title: string; angle: string; pillar: string; format: string; hook: string }[];
+}
+export type ReviewCriterion = "gancho" | "clareza" | "naturalidade" | "valor_entregue" | "adequacao_ao_publico" | "cta" | "legenda" | "capa_visual" | "hashtags";
+export interface ContentReviewResult {
+  summary: string;
+  overall_score: number;
+  audience_fit: { score: number; analysis: string; who_it_reaches: string; who_it_should_reach: string };
+  scores: { criterion: ReviewCriterion; score: number; comment: string }[];
+  strengths: { title: string; detail: string }[];
+  improvements: { title: string; problem: string; suggestion: string; example: string }[];
+  rewrites: { hooks: string[]; opening_script: string; caption: string; cta: string; hashtags: string[] };
+  natural_language_tips: string[];
+  metrics_reading: string;
+  next_content_ideas: { title: string; why: string }[];
+  data_caveats: string;
 }

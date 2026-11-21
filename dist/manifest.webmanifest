@@ -1,0 +1,22 @@
+{
+  "name": "ContentFlow AI",
+  "short_name": "ContentFlow",
+  "description": "Da ideia à publicação. Seu conteúdo, com estratégia e inteligência.",
+  "lang": "pt-BR",
+  "start_url": "/app?origem=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#13102A",
+  "theme_color": "#7952D6",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Estúdio de IA", "url": "/estudio", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Assistente IA", "url": "/assistente", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Analisar conteúdo", "url": "/analise", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

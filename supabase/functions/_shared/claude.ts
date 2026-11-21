@@ -36,7 +36,18 @@ export async function generateWithClaude<T>(opts: GenerateOptions): Promise<Gene
         { type: "text", text: opts.system, cache_control: { type: "ephemeral" } },
         { type: "text", text: opts.context },
       ],
-      messages: [{ role: "user", content: opts.prompt }],
+      messages: [{
+        role: "user",
+        content: opts.images?.length
+          ? [
+            ...opts.images.map((img) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: img.mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data: img.data },
+            })),
+            { type: "text" as const, text: opts.prompt },
+          ]
+          : opts.prompt,
+      }],
     });
     message = await stream.finalMessage();
   } catch (err) {

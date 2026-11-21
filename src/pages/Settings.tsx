@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Chips, Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Badge, Card, Dot, ProgressBar } from "@/components/ui/misc";
 import { Modal } from "@/components/ui/Modal";
+import { PushSetup } from "@/components/PushSetup";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PLAN_INFO, platformLabel, PLATFORMS, TONES } from "@/lib/constants";
@@ -189,22 +190,25 @@ function SocialTab() {
 function NotificationsTab() {
   const { profile, updateProfile } = useAuth();
   const [prefs, setPrefs] = useState<NotificationPrefs>(profile!.notification_prefs);
-  const toggle = (k: keyof NotificationPrefs) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  const toggle = (k: keyof NotificationPrefs) => setPrefs((p) => ({ ...p, [k]: p[k] === false }));
   const Row = ({ k, label, desc, disabled }: { k: keyof NotificationPrefs; label: string; desc?: string; disabled?: boolean }) => (
     <label className={cn("flex items-center justify-between gap-4 py-3", disabled && "opacity-50")}>
       <span><span className="block text-sm font-semibold">{label}</span>{desc && <span className="text-xs text-ink-soft">{desc}</span>}</span>
-      <button type="button" role="switch" aria-checked={prefs[k]} disabled={disabled} onClick={() => toggle(k)}
-        className={cn("relative h-6 w-11 shrink-0 rounded-full transition", prefs[k] ? "bg-brand-500" : "bg-line")}>
-        <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", prefs[k] ? "left-[22px]" : "left-0.5")} />
+      <button type="button" role="switch" aria-checked={prefs[k] !== false} disabled={disabled} onClick={() => toggle(k)}
+        className={cn("relative h-6 w-11 shrink-0 rounded-full transition", prefs[k] !== false ? "bg-brand-500" : "bg-line")}>
+        <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", prefs[k] !== false ? "left-[22px]" : "left-0.5")} />
       </button>
     </label>
   );
   return (
+    <div className="space-y-4">
+    <PushSetup />
     <Section title="Notificações e lembretes" footer={<Button onClick={async () => { await updateProfile({ notification_prefs: prefs }); toast.success("Preferências salvas"); }}>Salvar</Button>}>
       <p className="text-xs font-bold uppercase tracking-wider text-ink-faint">Canais</p>
       <div className="divide-y divide-line">
         <Row k="in_app" label="No aplicativo" desc="Sino no topo da tela" />
         <Row k="email" label="Por e-mail" desc="Resumo dos lembretes pendentes" />
+        <Row k="push" label="Push no celular/computador" desc="Nos aparelhos onde você ativou acima" />
         <Row k="whatsapp" label="WhatsApp" desc="Em breve, via integração oficial do WhatsApp Business" disabled />
       </div>
       <p className="mt-5 text-xs font-bold uppercase tracking-wider text-ink-faint">Avisar sobre</p>
@@ -217,6 +221,7 @@ function NotificationsTab() {
         <Row k="weekly_report" label="Relatório semanal" desc="Resumo com seus números reais" />
       </div>
     </Section>
+    </div>
   );
 }
 

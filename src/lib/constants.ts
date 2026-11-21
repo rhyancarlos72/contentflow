@@ -125,6 +125,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   ai_plan: "Planejamento inteligente",
   ai_chat: "Assistente de conteúdo",
   ai_topics: "Gerador de temas",
+  ai_review: "Análise de conteúdo",
   ai_scripts: "Gerador de roteiros",
   ai_captions: "Gerador de legendas",
   ai_cta: "Gerador de CTAs",

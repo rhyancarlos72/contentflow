@@ -110,6 +110,11 @@ app.use((req, res, next) => {
   );
 });
 
+// Service worker e manifesto sempre atualizados (nunca em cache).
+app.get(["/sw.js", "/manifest.webmanifest"], (req, res, next) => {
+  res.set({ "Cache-Control": "no-cache", "Service-Worker-Allowed": "/" });
+  next();
+});
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y", fallthrough: false }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
 

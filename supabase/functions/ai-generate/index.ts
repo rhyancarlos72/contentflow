@@ -6,6 +6,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.118.0";
 import { generateStructured, type Effort } from "../_shared/ai.ts";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { buildContext, loadProject } from "../_shared/context.ts";
+import { fetchImageBase64, parseDataUrlImage } from "../_shared/net.ts";
 import { admin, authenticate, getPlan, type PlanInfo } from "../_shared/supabase.ts";
 import {
   CTA_GOAL_LABELS,
@@ -16,11 +17,12 @@ import {
   SYSTEM_PROMPT,
 } from "./prompts.ts";
 
-type Tool = "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags" | "plan" | "analytics_insights" | "suggestions" | "topics";
+type Tool = "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags" | "plan" | "analytics_insights" | "suggestions" | "topics" | "content_review";
 
 const TOOL_FEATURE: Record<Tool, string> = {
   ideas: "ai_ideas",
   topics: "ai_ideas",
+  content_review: "ai_review",
   hooks: "ai_hooks",
   hashtags: "ai_hashtags",
   suggestions: "ai_suggestions",
@@ -65,6 +67,7 @@ function number(input: Input, key: string, allowed: number[], fallback: number):
 // ---------------------------------------------------------------------------
 interface ToolRun {
   prompt: string;
+  images?: { mediaType: string; data: string }[];
   schema: Record<string, unknown>;
   maxTokens: number;
   effort: Effort;
@@ -81,6 +84,70 @@ Cada ideia: título claro, abordagem (como executar, em 1-2 frases), público es
     schema: SCHEMAS.ideas,
     maxTokens: 8000,
     effort: "low",
+  };
+}
+
+const FORMAT_NAMES: Record<string, string> = {
+  reels: "Reels/vídeo curto vertical", shorts: "YouTube Shorts", video_longo: "vídeo longo", carrossel: "carrossel",
+  post: "post de imagem", stories: "Stories",
+};
+
+async function contentReviewTool(input: Input): Promise<ToolRun> {
+  const caption = text(input, "caption", { max: 4000 });
+  const transcript = text(input, "transcript", { max: 8000 });
+  const title = text(input, "title", { max: 300 });
+  if (!caption && !transcript && !title) {
+    throw new HttpError(400, "invalid_input", "Cole a legenda ou o texto/fala do conteúdo para a IA analisar.");
+  }
+  const platform = text(input, "platform", { max: 40 }) || "não informada";
+  const format = text(input, "format", { max: 40 });
+  const audience = text(input, "audience", { max: 600 });
+  const goal = text(input, "goal", { max: 200 });
+  const notes = text(input, "notes", { max: 1000 });
+  const url = text(input, "url", { max: 500 });
+
+  const m = (input.metrics && typeof input.metrics === "object") ? input.metrics as Record<string, unknown> : {};
+  const metricNames: Record<string, string> = { views: "visualizações", reach: "alcance", likes: "curtidas", comments: "comentários", shares: "compartilhamentos", saves: "salvamentos", followers: "seguidores do perfil" };
+  const metrics = Object.entries(metricNames)
+    .map(([k, label]) => [label, Number(m[k])] as const)
+    .filter(([, v]) => Number.isFinite(v) && v >= 0)
+    .map(([label, v]) => `${label}: ${v}`);
+
+  const images: { mediaType: string; data: string }[] = [];
+  const uploaded = typeof input.image === "string" ? parseDataUrlImage(input.image) : null;
+  if (uploaded) images.push(uploaded);
+  const thumb = text(input, "thumbnail", { max: 2000 });
+  if (!uploaded && thumb.startsWith("https://")) {
+    const img = await fetchImageBase64(thumb);
+    if (img) images.push(img);
+  }
+
+  return {
+    prompt: `Analise este conteúdo já publicado e diga com honestidade o que está bom e o que melhorar.
+
+Dados do conteúdo:
+- Plataforma: ${platform}${format ? ` · Formato: ${FORMAT_NAMES[format] ?? format}` : ""}${url ? `\n- Link: ${url}` : ""}
+${title ? `- Título: ${title}\n` : ""}- Legenda: ${caption || "(não informada)"}
+- Fala / roteiro / texto na tela: ${transcript || "(não informado — o áudio e as imagens do vídeo NÃO foram analisados)"}
+- Público que a pessoa quer atingir: ${audience || "o público do projeto (veja o contexto)"}
+${goal ? `- Objetivo do conteúdo: ${goal}\n` : ""}- Métricas informadas: ${metrics.length ? metrics.join(", ") : "nenhuma"}
+${notes ? `- Observações do criador: ${notes}\n` : ""}${images.length ? "- A imagem anexada é a capa/print do conteúdo: avalie o impacto visual, a leitura do texto na capa e se ela gera curiosidade.\n" : "- Nenhuma imagem disponível: dê nota ao critério capa_visual apenas se houver informação; senão use 0 e explique.\n"}
+Como avaliar:
+- Notas de 0 a 100, calibradas: 50 = mediano, 70 = bom, 85+ = excelente. Não infle notas.
+- "scores": avalie TODOS os critérios (gancho, clareza, naturalidade, valor_entregue, adequacao_ao_publico, cta, legenda, capa_visual, hashtags), citando trechos reais do conteúdo nos comentários.
+- "strengths": 2 a 4 pontos que já funcionam (seja específico, cite o trecho).
+- "improvements": 3 a 6 melhorias priorizadas; em "example" mostre como ficaria, reescrito.
+- "rewrites": reescreva para soar o mais natural possível para o público-alvo — como uma pessoa real falando com essa pessoa, no vocabulário dela. 3 ganchos alternativos, a abertura do roteiro (primeiros ~10 segundos), a legenda completa sem hashtags, um CTA e 5 a 8 hashtags relevantes.
+- "audience_fit": para quem o conteúdo fala hoje vs. para quem deveria falar, e o que ajustar.
+- "natural_language_tips": 3 a 5 dicas práticas para deixar a comunicação mais natural.
+- "metrics_reading": interprete as métricas informadas (proporções como salvamentos/alcance) sem inventar médias de mercado; se não houver métricas, diga isso.
+- "next_content_ideas": 3 conteúdos de continuação que aproveitam o que funcionou.
+- "data_caveats": deixe claro o que não foi possível avaliar (ex.: vídeo e áudio não analisados).
+- Nunca diga que o conteúdo viralizou ou vai viralizar.`,
+    schema: SCHEMAS.content_review,
+    maxTokens: 12000,
+    effort: "medium",
+    images,
   };
 }
 
@@ -416,7 +483,7 @@ serve(async (req) => {
     if (error) throw error;
     if ((count ?? 0) >= toolLimit) {
       throw new HttpError(429, "tool_limit",
-        `Você usou os ${toolLimit} roteiros com IA do plano gratuito neste mês. Assine o Creator para gerar sem esse limite.`);
+        `Você usou ${toolLimit} ${tool === "content_review" ? "análises de conteúdo" : "roteiros com IA"} do plano gratuito neste mês. Assine o Creator para usar sem esse limite.`);
     }
   }
   if ((recent.count ?? 0) >= PER_MINUTE_LIMIT) {
@@ -431,6 +498,7 @@ serve(async (req) => {
     switch (tool) {
       case "ideas": return ideasTool(input);
       case "topics": return topicsTool(input);
+      case "content_review": return contentReviewTool(input);
       case "script": return scriptTool(input);
       case "caption": return captionTool(input);
       case "hooks": return hooksTool(input);
@@ -457,6 +525,7 @@ serve(async (req) => {
       schema: run.schema,
       maxTokens: run.maxTokens,
       effort: run.effort,
+      images: run.images,
     });
     await admin.from("ai_usage").insert({
       user_id: user.id, project_id: project.id, tool, model: result.model,

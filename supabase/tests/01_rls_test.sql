@@ -170,3 +170,42 @@ do $$ begin
 end $$;
 rollback;
 \echo 'CHAT_TESTS_PASSED'
+
+-- Push e análises isolados por usuário
+begin;
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000000f1', 'f1@test.dev'), ('00000000-0000-0000-0000-0000000000f2', 'f2@test.dev');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f1', true);
+insert into projects (id, user_id, name) values ('20000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f1', 'P');
+insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-0000000000f1', 'https://push.example/1', 'k', 'a');
+insert into content_analyses (user_id, project_id, title, result, overall_score)
+  values ('00000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-0000000000f1', 'Reels', '{}', 72);
+do $$ begin
+  assert (select (notification_prefs ->> 'push')::boolean from profiles where id = '00000000-0000-0000-0000-0000000000f1'), 'push ligado por padrão';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f2', true);
+do $$ begin
+  assert (select count(*) from push_subscriptions) = 0, 'não vê push de outro usuário';
+  assert (select count(*) from content_analyses) = 0, 'não vê análises de outro usuário';
+  begin
+    insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-0000000000f1', 'https://push.example/2', 'k', 'a');
+    raise exception 'deveria bloquear assinatura em nome de outro usuário';
+  exception when insufficient_privilege then null;
+  end;
+  assert (select (tool_limits ->> 'content_review')::int = 3 from plan_limits where plan = 'free'), 'limite de análises no gratuito';
+end $$;
+rollback;
+\echo 'PUSH_REVIEW_TESTS_PASSED'
+
+-- Segredos do servidor inacessíveis ao cliente
+begin;
+set local role authenticated;
+do $$ begin
+  begin
+    perform 1 from app_secrets;
+    raise exception 'cliente não pode ler app_secrets';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+rollback;
