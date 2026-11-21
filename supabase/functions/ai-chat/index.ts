@@ -22,6 +22,7 @@ Como agir:
 - Formatação: parágrafos curtos, listas com "-", títulos com "##" quando ajudar, **negrito** para destacar. Sem tabelas.`;
 
 serve(async (req) => {
+  const deadline = Date.now() + 140_000; // limite da Edge Function: ~150 s
   if (req.method !== "POST") throw new HttpError(405, "method_not_allowed", "Use POST.");
   const { user, db } = await authenticate(req);
   const body = await req.json().catch(() => null) as {
@@ -93,7 +94,7 @@ serve(async (req) => {
     : CHAT_SYSTEM;
 
   const result: StreamResult = { model: "", inputTokens: 0, outputTokens: 0 };
-  const generator = await streamChat({ system, context, messages, maxTokens: 6000 }, result);
+  const generator = await streamChat({ system, context, messages, maxTokens: 6000, deadline }, result);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({

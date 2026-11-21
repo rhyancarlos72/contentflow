@@ -3,7 +3,7 @@
 // minuto, monta o contexto do projeto (memória isolada por projeto + histórico
 // para evitar repetição), chama o Claude e registra o consumo.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.118.0";
-import { generateStructured, type Effort } from "../_shared/ai.ts";
+import { generateStructured, type Effort, type GenerateResult } from "../_shared/ai.ts";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { buildContext, loadProject } from "../_shared/context.ts";
 import { fetchImageBase64, parseDataUrlImage } from "../_shared/net.ts";
@@ -11,7 +11,6 @@ import { admin, authenticate, getPlan, type PlanInfo } from "../_shared/supabase
 import {
   CTA_GOAL_LABELS,
   HOOK_CATEGORY_LABELS,
-  planSchema,
   SCHEMAS,
   SCRIPT_TYPE_LABELS,
   SYSTEM_PROMPT,
@@ -65,7 +64,12 @@ function number(input: Input, key: string, allowed: number[], fallback: number):
 // ---------------------------------------------------------------------------
 // Ferramentas
 // ---------------------------------------------------------------------------
+/** Dados compartilhados por gerações que fazem mais de uma chamada à IA. */
+interface ExecContext { context: string; deadline: number }
+
 interface ToolRun {
+  /** Execução própria (várias chamadas); se ausente, uma chamada com prompt/schema. */
+  execute?: (ctx: ExecContext) => Promise<GenerateResult<unknown>>;
   prompt: string;
   images?: { mediaType: string; data: string }[];
   schema: Record<string, unknown>;
@@ -278,6 +282,49 @@ function planSlots(startDate: string, days: number, perWeek: number): string[] {
   });
 }
 
+const OUTLINE_SCHEMA = (platforms: string[], formats: string[]) => ({
+  type: "object", additionalProperties: false, required: ["strategy_summary", "items"],
+  properties: {
+    strategy_summary: { type: "string" },
+    items: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false, required: ["platform", "format", "theme", "pillar", "strategic_goal"],
+        properties: {
+          platform: { type: "string", enum: platforms },
+          format: formats.length ? { type: "string", enum: formats } : { type: "string" },
+          theme: { type: "string" },
+          pillar: { type: "string", enum: ["educativo", "emocional", "informativo", "entretenimento", "vendas", "autoridade", "comunidade"] },
+          strategic_goal: { type: "string" },
+        },
+      },
+    },
+  },
+});
+
+const DETAIL_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["items"],
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false, required: ["hook", "script", "caption", "cta", "hashtags"],
+        properties: {
+          hook: { type: "string" }, script: { type: "string" }, caption: { type: "string" }, cta: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+  },
+};
+
+const cleanTags = (tags: unknown) => ((tags as string[]) ?? []).map((h) => "#" + String(h).replace(/^#+/, "").replace(/\s+/g, ""));
+
+/**
+ * Planejamento em duas etapas, para caber no tempo da Edge Function mesmo em 30 dias:
+ * 1) esqueleto do período (temas, pilares, formatos) — curto e rápido;
+ * 2) gancho, roteiro, legenda, CTA e hashtags em lotes de até 4 publicações, em paralelo.
+ */
 function planTool(input: Input, plan: PlanInfo): ToolRun {
   const days = number(input, "days", [7, 15, 30], 7);
   if (days > plan.max_plan_days) {
@@ -290,44 +337,71 @@ function planTool(input: Input, plan: PlanInfo): ToolRun {
   if (!platforms.length) throw new HttpError(400, "invalid_input", "Escolha pelo menos uma rede social.");
   const formats = list(input, "formats");
   const slots = planSlots(startDate, days, perWeek);
+  const style = text(input, "style", { max: 400 }) || "natural";
 
-  return {
-    prompt: `Crie um planejamento estratégico de conteúdo de ${days} dias com exatamente ${slots.length} publicações.
-
-Briefing:
+  const briefing = `Briefing:
 - Nicho: ${text(input, "niche", { required: true, max: 200 })}
 - Público-alvo: ${text(input, "audience", { required: true, max: 600 })}
 - Objetivo principal: ${text(input, "goal", { required: true, max: 80 })}
 - Redes: ${platforms.join(", ")}
 - Publicações por semana: ${perWeek}
 - Formatos preferidos: ${formats.join(", ") || "livre"}
-- Estilo de comunicação: ${text(input, "style", { max: 200 }) || "natural"}
+- Estilo de comunicação: ${style}
 - Temas desejados: ${text(input, "themes", { max: 800 }) || "livre, dentro do nicho"}
-- Temas a evitar: ${text(input, "avoid", { max: 800 }) || "nenhum informado"}
+- Temas a evitar: ${text(input, "avoid", { max: 800 }) || "nenhum informado"}`;
 
-As publicações estão nas datas: ${slots.join(", ")}. Gere os itens nessa ordem, um por data.
+  return {
+    prompt: "",
+    schema: {},
+    maxTokens: 0,
+    effort: "low",
+    execute: async ({ context, deadline }) => {
+      // Etapa 1: esqueleto
+      const outline = await generateStructured<{ strategy_summary: string; items: Record<string, unknown>[] }>({
+        system: SYSTEM_PROMPT, context, deadline, effort: "low", maxTokens: 8000,
+        schema: OUTLINE_SCHEMA(platforms, formats),
+        prompt: `Monte o esqueleto de um planejamento de conteúdo de ${days} dias com exatamente ${slots.length} publicações, nas datas: ${slots.join(", ")} (um item por data, nessa ordem).
+
+${briefing}
+
 Regras:
-- Sem temas repetidos entre si nem com os já abordados no contexto.
-- Equilibre pilares: educativo, emocional, informativo, entretenimento e vendas (vendas no máximo 1 a cada 5, salvo se o objetivo for gerar vendas, então até 1 a cada 3). Use também autoridade/comunidade quando fizer sentido.
-- Alterne plataformas e formatos de acordo com as preferências.
-- Crie uma progressão: começar atraindo e gerando confiança, depois aprofundar e converter.
-- "script": estrutura do roteiro em tópicos curtos (gancho → desenvolvimento → mensagem → CTA) ou o roteiro do carrossel slide a slide.
-- "caption": legenda completa pronta para publicar, sem hashtags.
-- "hashtags": 3 a 10 hashtags específicas com #.
+- "theme": tema específico e acionável; nenhum repetido entre si nem com os já abordados no contexto.
+- Equilibre pilares (vendas no máximo 1 a cada 5, salvo objetivo de vendas: até 1 a cada 3) e alterne plataformas e formatos.
+- Progressão: atrair e gerar confiança no início, aprofundar e converter depois.
+- "strategic_goal": uma frase curta com o objetivo da publicação.
 - "strategy_summary": 3-5 frases explicando a lógica do planejamento.`,
-    schema: planSchema(platforms, formats),
-    maxTokens: days === 30 ? 64000 : 32000,
-    effort: "medium",
-    transform: (data) => {
-      const d = data as { strategy_summary: string; items: Record<string, unknown>[] };
+      });
+      const base = outline.data.items.slice(0, slots.length);
+
+      // Etapa 2: detalhes em lotes paralelos
+      const chunks: Record<string, unknown>[][] = [];
+      for (let i = 0; i < base.length; i += 4) chunks.push(base.slice(i, i + 4));
+      const details = await Promise.all(chunks.map((chunk) =>
+        generateStructured<{ items: Record<string, unknown>[] }>({
+          system: SYSTEM_PROMPT, context, deadline, effort: "low", maxTokens: 9000, schema: DETAIL_SCHEMA,
+          prompt: `Escreva o conteúdo completo de ${chunk.length} publicações de um planejamento (mantenha a mesma ordem e quantidade):
+${chunk.map((it, i) => `${i + 1}. [${it.platform} · ${it.format} · pilar ${it.pillar}] ${it.theme} — objetivo: ${it.strategic_goal}`).join("\n")}
+
+Público e estilo: ${briefing.split("\n").slice(2, 3).join("")} · estilo ${style}.
+Para cada uma:
+- "hook": a primeira frase, que prende nos 3 primeiros segundos;
+- "script": estrutura em tópicos curtos (gancho → desenvolvimento → mensagem → CTA) ou o carrossel slide a slide;
+- "caption": legenda completa pronta para publicar, sem hashtags;
+- "cta": chamada para ação específica;
+- "hashtags": 3 a 8 hashtags relevantes, com #.`,
+        })
+      ));
+
+      let k = 0;
+      const items = details.flatMap((d, ci) => chunks[ci]!.map((it, j) => {
+        const extra = d.data.items[j] ?? { hook: "", script: "", caption: "", cta: "", hashtags: [] };
+        return { ...it, ...extra, id: crypto.randomUUID(), date: slots[k++], hashtags: cleanTags(extra.hashtags) };
+      }));
       return {
-        strategy_summary: d.strategy_summary,
-        items: d.items.slice(0, slots.length).map((item, i) => ({
-          ...item,
-          id: crypto.randomUUID(),
-          date: slots[i],
-          hashtags: ((item.hashtags as string[]) ?? []).map((h) => "#" + h.replace(/^#+/, "").replace(/\s+/g, "")),
-        })),
+        data: { strategy_summary: outline.data.strategy_summary, items },
+        model: outline.model,
+        inputTokens: outline.inputTokens + details.reduce((s, d) => s + d.inputTokens, 0),
+        outputTokens: outline.outputTokens + details.reduce((s, d) => s + d.outputTokens, 0),
       };
     },
   };
@@ -444,6 +518,8 @@ ${JSON.stringify({ total: posts.length, por_status: count("status"), por_pilar: 
 // Handler
 // ---------------------------------------------------------------------------
 serve(async (req) => {
+  // A Edge Function tem ~150 s de limite; a IA precisa responder antes disso.
+  const deadline = Date.now() + 135_000;
   if (req.method !== "POST") throw new HttpError(405, "method_not_allowed", "Use POST.");
   const { user, db } = await authenticate(req);
 
@@ -512,21 +588,24 @@ serve(async (req) => {
 
   // Estilo de escrita escolhido para esta peça (predefinido ou da memória do projeto).
   const style = text(input, "style", { max: 400 });
-  if (style) {
+  if (style && !run.execute) {
     run.prompt += `\n\nEstilo de escrita pedido para esta peça: ${style}\nSiga esse estilo com prioridade sobre o estilo padrão, sem perder a naturalidade e o tom de voz do projeto.`;
   }
 
   // 4. Geração
   try {
-    const result = await generateStructured<unknown>({
-      system: SYSTEM_PROMPT,
-      context,
-      prompt: run.prompt,
-      schema: run.schema,
-      maxTokens: run.maxTokens,
-      effort: run.effort,
-      images: run.images,
-    });
+    const result = run.execute
+      ? await run.execute({ context, deadline })
+      : await generateStructured<unknown>({
+        system: SYSTEM_PROMPT,
+        context,
+        prompt: run.prompt,
+        schema: run.schema,
+        maxTokens: run.maxTokens,
+        effort: run.effort,
+        images: run.images,
+        deadline,
+      });
     await admin.from("ai_usage").insert({
       user_id: user.id, project_id: project.id, tool, model: result.model,
       input_tokens: result.inputTokens, output_tokens: result.outputTokens, success: true,

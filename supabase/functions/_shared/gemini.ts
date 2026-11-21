@@ -1,7 +1,7 @@
 // Cliente Google Gemini. A chave fica apenas no servidor (secret GEMINI_API_KEY).
 // Modelo padrão: gemini-flash-latest (Flash mais recente, com plano gratuito na
 // API). Troque com o secret GEMINI_MODEL.
-import { ApiError, GoogleGenAI } from "npm:@google/genai@~2.31.0";
+import { ApiError, GoogleGenAI, ThinkingLevel } from "npm:@google/genai@~2.31.0";
 import type { ChatOptions, GenerateOptions, GenerateResult, StreamResult } from "./ai.ts";
 import { HttpError, requireEnv } from "./http.ts";
 
@@ -12,18 +12,37 @@ const GEMINI_FALLBACK_MODEL = Deno.env.get("GEMINI_FALLBACK_MODEL") ?? "gemini-f
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const overloaded = (err: unknown) => err instanceof ApiError && (err.status === 503 || err.status === 500 || err.status === 502 || err.status === 504);
 
-/** Tenta o modelo principal (com 2 novas tentativas) e depois o modelo reserva. */
-async function withRetry<T>(call: (model: string) => Promise<T>): Promise<{ value: T; model: string }> {
-  const plan = [GEMINI_MODEL, GEMINI_MODEL, GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter((m, i, a) => m !== GEMINI_FALLBACK_MODEL || a.indexOf(m) === i);
+// Raciocínio interno baixo deixa a resposta bem mais rápida; se o modelo não
+// aceitar o parâmetro, as próximas chamadas seguem sem ele.
+let thinkingSupported = true;
+const thinking = () => (thinkingSupported ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } } : {});
+
+/**
+ * Tenta o modelo principal e depois o modelo reserva, respeitando o prazo:
+ * só faz nova tentativa se ainda houver tempo de sobra.
+ */
+async function withRetry<T>(deadline: number | undefined, call: (model: string, signal: AbortSignal) => Promise<T>): Promise<{ value: T; model: string }> {
+  const plan = [GEMINI_MODEL, GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter((m, i, a) => m !== GEMINI_FALLBACK_MODEL || a.indexOf(m) === i);
+  const left = () => (deadline ? deadline - Date.now() : 120_000);
   let last: unknown;
   for (let i = 0; i < plan.length; i++) {
+    if (i > 0 && left() < 40_000) break;
+    const signal = AbortSignal.timeout(Math.max(5000, left() - 3000));
     try {
-      return { value: await call(plan[i]!), model: plan[i]! };
+      return { value: await call(plan[i]!, signal), model: plan[i]! };
     } catch (err) {
       last = err;
+      if (err instanceof ApiError && err.status === 400 && /thinking/i.test(err.message) && thinkingSupported) {
+        thinkingSupported = false;
+        i--;
+        continue;
+      }
+      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+        throw new HttpError(504, "ai_timeout", "O Gemini demorou demais para responder.");
+      }
       if (!overloaded(err)) throw err;
       console.warn(`Gemini ${plan[i]} sobrecarregado (tentativa ${i + 1})`);
-      if (i < plan.length - 1) await sleep(800 * (i + 1));
+      if (i < plan.length - 1) await sleep(700 * (i + 1));
     }
   }
   throw last;
@@ -39,7 +58,7 @@ export async function generateWithGemini<T>(opts: GenerateOptions): Promise<Gene
   let response;
   let usedModel = GEMINI_MODEL;
   try {
-    const out = await withRetry((model) => getClient().models.generateContent({
+    const out = await withRetry(opts.deadline, (model, signal) => getClient().models.generateContent({
       model,
       contents: opts.images?.length
         ? [{ role: "user", parts: [{ text: opts.prompt }, ...opts.images.map((img) => ({ inlineData: { mimeType: img.mediaType, data: img.data } }))] }]
@@ -49,6 +68,8 @@ export async function generateWithGemini<T>(opts: GenerateOptions): Promise<Gene
         responseMimeType: "application/json",
         responseJsonSchema: opts.schema,
         maxOutputTokens: opts.maxTokens,
+        abortSignal: signal,
+        ...thinking(),
       },
     }));
     response = out.value;
@@ -56,6 +77,9 @@ export async function generateWithGemini<T>(opts: GenerateOptions): Promise<Gene
   } catch (err) {
     if (err instanceof ApiError) {
       console.error("Gemini API error", err.status, err.message);
+      if (err.status === 429 && /quota|billing|exceeded your current/i.test(err.message)) {
+        throw new HttpError(503, "ai_quota", "O limite gratuito do Gemini acabou por hoje.");
+      }
       if (err.status === 429) {
         throw new HttpError(503, "ai_busy",
           "Limite gratuito da IA atingido no momento. Aguarde um minuto e tente de novo.");
@@ -101,10 +125,10 @@ export async function generateWithGemini<T>(opts: GenerateOptions): Promise<Gene
 export async function* streamWithGemini(opts: ChatOptions, result: StreamResult): AsyncGenerator<string> {
   result.model = GEMINI_MODEL;
   try {
-    const { value: stream, model } = await withRetry((m) => getClient().models.generateContentStream({
+    const { value: stream, model } = await withRetry(opts.deadline, (m, signal) => getClient().models.generateContentStream({
       model: m,
       contents: opts.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-      config: { systemInstruction: `${opts.system}\n\n${opts.context}`, maxOutputTokens: opts.maxTokens },
+      config: { systemInstruction: `${opts.system}\n\n${opts.context}`, maxOutputTokens: opts.maxTokens, abortSignal: signal, ...thinking() },
     }));
     result.model = model;
     for await (const chunk of stream) {

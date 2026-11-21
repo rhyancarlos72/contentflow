@@ -13,11 +13,23 @@ function getClient(): OpenAI {
   return client;
 }
 
+const requestOptions = (deadline?: number) => {
+  const left = deadline ? deadline - Date.now() - 3000 : 120_000;
+  return { signal: AbortSignal.timeout(Math.max(5000, left)), maxRetries: left > 60_000 ? 1 : 0 };
+};
+
 function toHttpError(err: unknown): unknown {
+  if (err instanceof OpenAI.APIUserAbortError || err instanceof OpenAI.APIConnectionTimeoutError ||
+    (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError"))) {
+    return new HttpError(504, "ai_timeout", "A OpenAI demorou demais para responder.");
+  }
   if (err instanceof OpenAI.APIError) {
     console.error("OpenAI API error", err.status, err.message);
+    if (err.status === 429 && (err.code === "insufficient_quota" || /credit|quota|billing/i.test(err.message))) {
+      return new HttpError(503, "ai_quota", "A conta da OpenAI está sem créditos. Adicione créditos em platform.openai.com.");
+    }
     if (err.status === 429) {
-      return new HttpError(503, "ai_busy", "A IA está com alta demanda ou sem créditos na OpenAI. Tente em instantes.");
+      return new HttpError(503, "ai_busy", "A OpenAI está com alta demanda. Tente em instantes.");
     }
     if (err.status === 401 || err.status === 403) {
       return new HttpError(503, "ai_not_configured", "Chave da OpenAI inválida ou sem permissão. Confira o secret OPENAI_API_KEY.");
@@ -48,7 +60,7 @@ export async function generateWithOpenAI<T>(opts: GenerateOptions): Promise<Gene
       max_output_tokens: opts.maxTokens,
       reasoning: { effort: opts.effort },
       text: { format: { type: "json_schema", name: "resultado", schema: opts.schema, strict: true } },
-    });
+    }, requestOptions(opts.deadline));
   } catch (err) {
     throw toHttpError(err);
   }
@@ -86,7 +98,7 @@ export async function* streamWithOpenAI(opts: ChatOptions, result: StreamResult)
       max_output_tokens: opts.maxTokens,
       reasoning: { effort: "low" },
       stream: true,
-    });
+    }, requestOptions(opts.deadline));
   } catch (err) {
     throw toHttpError(err);
   }
