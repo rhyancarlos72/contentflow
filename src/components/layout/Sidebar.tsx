@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   BarChart3, BookMarked, CalendarDays, ChevronsLeft, FileText, FolderKanban, Lightbulb,
-  LayoutDashboard, Settings, Sparkles, Target, Wand2, X,
+  LayoutDashboard, MessageSquare, Settings, Sparkles, Target, Wand2, X,
 } from "lucide-react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PLAN_INFO } from "@/lib/constants";
@@ -11,6 +11,7 @@ import { LogoMark } from "../Logo";
 export const NAV_ITEMS = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/estudio", label: "Estúdio de IA", icon: Wand2, highlight: true },
+  { to: "/assistente", label: "Assistente IA", icon: MessageSquare, highlight: true },
   { to: "/planejamento", label: "Planejamento Inteligente", icon: Target },
   { to: "/calendario", label: "Calendário Editorial", icon: CalendarDays },
   { to: "/ideias", label: "Banco de Ideias", icon: Lightbulb },

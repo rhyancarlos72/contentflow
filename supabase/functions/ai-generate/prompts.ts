@@ -76,6 +76,9 @@ export const SCHEMAS = {
     next_steps: arr(str),
     data_caveats: str,
   }),
+  topics: obj({
+    topics: arr(obj({ title: str, angle: str, pillar: enumOf(PILLARS), format: str, hook: str })),
+  }),
   suggestions: obj({
     ideas: arr(obj({ title: str, format: str, pillar: enumOf(PILLARS), why: str })),
     recommendations: arr(obj({ title: str, detail: str })),

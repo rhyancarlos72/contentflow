@@ -435,3 +435,6 @@ verify_jwt = false
 # Autenticado por CRON_SECRET
 [functions.send-notification-emails]
 verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = true

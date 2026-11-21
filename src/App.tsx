@@ -17,6 +17,7 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Planning = lazy(() => import("@/pages/Planning"));
 const Calendar = lazy(() => import("@/pages/Calendar"));
 const Studio = lazy(() => import("@/pages/Studio"));
+const Assistant = lazy(() => import("@/pages/Assistant"));
 const Ideas = lazy(() => import("@/pages/Ideas"));
 const Scripts = lazy(() => import("@/pages/Scripts"));
 const ScriptEditor = lazy(() => import("@/pages/ScriptEditor"));
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/planejamento" element={<Planning />} />
           <Route path="/calendario" element={<Calendar />} />
           <Route path="/estudio" element={<Studio />} />
+          <Route path="/assistente" element={<Assistant />} />
           <Route path="/ideias" element={<Ideas />} />
           <Route path="/roteiros" element={<Scripts />} />
           <Route path="/roteiros/:id" element={<ScriptEditor />} />

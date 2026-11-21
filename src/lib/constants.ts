@@ -123,6 +123,8 @@ export const PLAN_INFO = {
 /** Recursos de cada plano (espelha plan_limits.features no banco). */
 export const FEATURE_LABELS: Record<string, string> = {
   ai_plan: "Planejamento inteligente",
+  ai_chat: "Assistente de conteúdo",
+  ai_topics: "Gerador de temas",
   ai_scripts: "Gerador de roteiros",
   ai_captions: "Gerador de legendas",
   ai_cta: "Gerador de CTAs",
@@ -136,3 +138,19 @@ export const FEATURE_LABELS: Record<string, string> = {
 
 export const minimumPlanFor = (feature: string): "creator" | "pro" =>
   ["advanced_memory", "advanced_analytics", "reports", "collaboration"].includes(feature) ? "pro" : "creator";
+
+/** Estilos de escrita prontos (o usuário também cria os seus na memória do projeto). */
+export const WRITING_STYLES = [
+  { value: "storytelling", label: "Storytelling", emoji: "📖", desc: "conta uma história real ou plausível, com começo, conflito e virada, e tira a lição no final" },
+  { value: "didatico", label: "Didático", emoji: "🧑‍🏫", desc: "explica passo a passo, com exemplos concretos e linguagem simples, sem pressupor conhecimento" },
+  { value: "direto", label: "Direto ao ponto", emoji: "🎯", desc: "frases curtas, zero enrolação, cada linha entrega algo útil" },
+  { value: "humor", label: "Bem-humorado", emoji: "😄", desc: "leve e engraçado, com ironia gentil e situações do dia a dia, sem perder a mensagem" },
+  { value: "inspirador", label: "Inspirador", emoji: "✨", desc: "emociona e motiva, com imagens concretas, sem frases de efeito vazias" },
+  { value: "polemico", label: "Polêmica construtiva", emoji: "🔥", desc: "desafia uma crença comum do nicho com argumentos, de forma respeitosa e fundamentada" },
+  { value: "amigo", label: "Papo de amigo", emoji: "☕", desc: "como uma conversa informal entre amigos, com perguntas e respostas e linguagem coloquial" },
+  { value: "especialista", label: "Especialista", emoji: "🧠", desc: "tom de autoridade técnica, com precisão, termos corretos explicados e confiança" },
+  { value: "vendas", label: "Persuasivo", emoji: "💰", desc: "copywriting de vendas: dor, desejo, prova e chamada clara para a ação, sem exagero" },
+] as const;
+
+/** Texto de estilo enviado à IA. */
+export const styleInstruction = (label: string, desc: string) => `${label} — ${desc}`;

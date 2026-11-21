@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.118.0";
 import { generateStructured, type Effort } from "../_shared/ai.ts";
 import { HttpError, json, serve } from "../_shared/http.ts";
+import { buildContext, loadProject } from "../_shared/context.ts";
 import { admin, authenticate, getPlan, type PlanInfo } from "../_shared/supabase.ts";
 import {
   CTA_GOAL_LABELS,
@@ -15,10 +16,11 @@ import {
   SYSTEM_PROMPT,
 } from "./prompts.ts";
 
-type Tool = "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags" | "plan" | "analytics_insights" | "suggestions";
+type Tool = "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags" | "plan" | "analytics_insights" | "suggestions" | "topics";
 
 const TOOL_FEATURE: Record<Tool, string> = {
   ideas: "ai_ideas",
+  topics: "ai_ideas",
   hooks: "ai_hooks",
   hashtags: "ai_hashtags",
   suggestions: "ai_suggestions",
@@ -59,93 +61,6 @@ function number(input: Input, key: string, allowed: number[], fallback: number):
 }
 
 // ---------------------------------------------------------------------------
-// Contexto do projeto e memória
-// ---------------------------------------------------------------------------
-const MEMORY_LABELS: Record<string, string> = {
-  estilo: "Estilo de escrita",
-  tom_de_voz: "Tom de voz",
-  publico: "Público-alvo",
-  assunto_abordado: "Assuntos já abordados (não repetir)",
-  conteudo_aprovado: "Conteúdos aprovados pelo usuário (referência de qualidade)",
-  preferencia: "Preferências do usuário",
-  objetivo: "Objetivos",
-  palavra_evitar: "Palavras e expressões proibidas",
-};
-
-interface Project {
-  id: string;
-  name: string;
-  kind: string;
-  description: string;
-  niche: string;
-  audience: string;
-  voice: string;
-  platforms: string[];
-  goals: string[];
-  posts_per_week: number;
-}
-
-async function loadProject(db: SupabaseClient, projectId: string): Promise<Project> {
-  const { data, error } = await db.from("projects")
-    .select("id, name, kind, description, niche, audience, voice, platforms, goals, posts_per_week")
-    .eq("id", projectId).maybeSingle();
-  if (error) throw error;
-  if (!data) throw new HttpError(404, "project_not_found", "Projeto não encontrado.");
-  return data as Project;
-}
-
-async function buildContext(db: SupabaseClient, project: Project, plan: PlanInfo): Promise<string> {
-  const advanced = plan.features.includes("advanced_memory");
-  const [memory, posts, ideas, top] = await Promise.all([
-    db.from("ai_memory").select("kind, content").eq("project_id", project.id)
-      .order("updated_at", { ascending: false }).limit(advanced ? 250 : 60),
-    db.from("calendar_posts").select("title, format, content_pillar").eq("project_id", project.id)
-      .order("scheduled_date", { ascending: false }).limit(advanced ? 120 : 50),
-    db.from("content_ideas").select("title").eq("project_id", project.id)
-      .order("created_at", { ascending: false }).limit(advanced ? 80 : 30),
-    advanced
-      ? db.from("analytics").select("title, format, topic, engagement_rate, saves, views")
-        .eq("project_id", project.id).not("engagement_rate", "is", null)
-        .order("engagement_rate", { ascending: false }).limit(5)
-      : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
-  ]);
-  for (const r of [memory, posts, ideas, top]) if (r.error) throw r.error;
-
-  const grouped = new Map<string, string[]>();
-  for (const m of memory.data ?? []) {
-    grouped.set(m.kind, [...(grouped.get(m.kind) ?? []), m.content]);
-  }
-
-  const lines: (string | null)[] = [
-    `# Projeto: ${project.name}`,
-    `Tipo: ${project.kind}`,
-    project.description ? `Descrição: ${project.description}` : null,
-    `Nicho: ${project.niche || "não informado"}`,
-    `Público: ${project.audience || "não informado"}`,
-    `Identidade de comunicação: ${project.voice || "não informada"}`,
-    `Plataformas: ${project.platforms.join(", ") || "não informadas"}`,
-    `Objetivos: ${project.goals.join(", ") || "não informados"}`,
-    "",
-    "# Memória estratégica do projeto",
-  ];
-  if (grouped.size === 0) lines.push("(vazia)");
-  for (const [kind, items] of grouped) {
-    lines.push(`## ${MEMORY_LABELS[kind] ?? kind}`, ...items.map((i) => `- ${i}`));
-  }
-  const postTitles = (posts.data ?? []).map((p) => `- ${p.title}${p.format ? ` (${p.format})` : ""}`);
-  if (postTitles.length) lines.push("", "# Conteúdos já planejados ou publicados (evite repetir)", ...postTitles);
-  const ideaTitles = (ideas.data ?? []).map((i) => `- ${i.title}`);
-  if (ideaTitles.length) lines.push("", "# Ideias já salvas no banco (evite duplicar)", ...ideaTitles);
-  if (top.data?.length) {
-    lines.push("", "# Publicações com melhor engajamento registrado (dados reais do usuário)");
-    for (const t of top.data) {
-      lines.push(`- ${t.title} · ${t.format} · engajamento ${t.engagement_rate}% · ${t.saves} salvamentos · ${t.views} views`);
-    }
-  }
-  return lines.filter((l) => l !== null).join("\n");
-}
-
-// ---------------------------------------------------------------------------
 // Ferramentas
 // ---------------------------------------------------------------------------
 interface ToolRun {
@@ -165,6 +80,24 @@ Distribua entre os tipos: Reels, carrosséis, Stories, temas de vídeo, conteúd
 Cada ideia: título claro, abordagem (como executar, em 1-2 frases), público específico a quem fala e objetivo estratégico.`,
     schema: SCHEMAS.ideas,
     maxTokens: 8000,
+    effort: "low",
+  };
+}
+
+function topicsTool(input: Input): ToolRun {
+  const focus = text(input, "topic", { max: 300 });
+  const quantity = number(input, "quantity", [6, 12, 18], 12);
+  return {
+    prompt: `Sugira ${quantity} temas (pautas) de conteúdo para este projeto${focus ? `, com foco em: "${focus}"` : ", cobrindo o nicho de forma ampla"}.
+Cada tema precisa ser específico e acionável (nada genérico como "dicas de finanças"), com:
+- "title": o tema em uma frase curta;
+- "angle": o ângulo que torna o tema interessante (o que a pessoa vai descobrir ou sentir);
+- "pillar": o pilar de conteúdo;
+- "format": o formato mais indicado (Reels, Carrossel, Stories, Vídeo longo, Post…);
+- "hook": um gancho de abertura pronto para usar.
+Distribua entre os pilares e varie formatos. Não repita assuntos já abordados no contexto.`,
+    schema: SCHEMAS.topics,
+    maxTokens: 6000,
     effort: "low",
   };
 }
@@ -497,6 +430,7 @@ serve(async (req) => {
   const run: ToolRun = await (async () => {
     switch (tool) {
       case "ideas": return ideasTool(input);
+      case "topics": return topicsTool(input);
       case "script": return scriptTool(input);
       case "caption": return captionTool(input);
       case "hooks": return hooksTool(input);
@@ -507,6 +441,12 @@ serve(async (req) => {
       case "suggestions": return suggestionsTool(db, project.id);
     }
   })();
+
+  // Estilo de escrita escolhido para esta peça (predefinido ou da memória do projeto).
+  const style = text(input, "style", { max: 400 });
+  if (style) {
+    run.prompt += `\n\nEstilo de escrita pedido para esta peça: ${style}\nSiga esse estilo com prioridade sobre o estilo padrão, sem perder a naturalidade e o tom de voz do projeto.`;
+  }
 
   // 4. Geração
   try {

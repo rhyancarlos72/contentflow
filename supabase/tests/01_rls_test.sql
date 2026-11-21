@@ -144,3 +144,29 @@ do $$ begin
 end $$;
 rollback;
 \echo 'TRIAL_TESTS_PASSED'
+
+-- Conversas do assistente isoladas por usuário
+begin;
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000000e1', 'e1@test.dev'), ('00000000-0000-0000-0000-0000000000e2', 'e2@test.dev');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1', true);
+insert into projects (id, user_id, name) values ('20000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e1', 'P');
+insert into ai_conversations (id, user_id, project_id, title)
+  values ('30000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e1', '20000000-0000-0000-0000-0000000000e1', 'Planejar semana');
+insert into ai_messages (conversation_id, user_id, role, content)
+  values ('30000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e1', 'user', 'oi');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e2', true);
+do $$ begin
+  assert (select count(*) from ai_conversations) = 0, 'outro usuário não vê conversas';
+  assert (select count(*) from ai_messages) = 0, 'outro usuário não vê mensagens';
+  begin
+    insert into ai_messages (conversation_id, user_id, role, content)
+    values ('30000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', 'user', 'invasão');
+    raise exception 'deveria bloquear mensagem em conversa alheia';
+  exception when insufficient_privilege then null;
+  end;
+  assert (select bool_and('ai_chat' = any(features) and 'ai_topics' = any(features)) from plan_limits), 'chat e temas em todos os planos';
+end $$;
+rollback;
+\echo 'CHAT_TESTS_PASSED'

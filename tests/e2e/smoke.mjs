@@ -46,21 +46,24 @@ const fx = {
   content_plans: [{ id: "cp1", user_id: uid, project_id: pid, title: "7 dias · a partir de hoje", days: 7, start_date: d(0), briefing: {}, strategy_summary: "Começar atraindo com conteúdos educativos e terminar com autoridade.",
     items: [{ id: "x1", date: d(0), platform: "instagram", format: "reels", theme: "O mito do salário alto", pillar: "educativo", strategic_goal: "Alcance", hook: "Ganhar mais não resolve.", script: "1. ...", caption: "...", cta: "Siga", hashtags: ["#financas"] }], created_at: now }],
   ai_memory: [{ id: "m1", project_id: pid, kind: "tom_de_voz", content: "Próxima e direta", source: "onboarding", created_at: now }],
+  ai_conversations: [{ id: "c1", title: "Planejar a semana", updated_at: now }],
+  ai_messages: [{ id: "m1", role: "user", content: "oi" }, { id: "m2", role: "assistant", content: "## Olá!\n- item **um**\n- item dois" }],
   social_accounts: [], notifications: [{ id: "n1", project_id: pid, type: "publicacao", title: "Publicação programada: Reserva de emergência", body: "Instagram · amanhã", link: "/calendario", read_at: null, created_at: now }],
 };
 
 const planStatus = { plan: "pro", limits: { plan: "pro", max_projects: 15, monthly_ai_generations: 600, max_plan_days: 30,
-  features: ["calendar", "ideas_bank", "manual_scripts", "ai_ideas", "ai_hooks", "ai_hashtags", "ai_suggestions", "ai_plan", "ai_scripts", "ai_captions", "ai_cta", "analytics_manual", "library", "ai_analytics", "advanced_memory", "advanced_analytics", "reports"] },
+  features: ["ai_chat", "ai_topics", "calendar", "ideas_bank", "manual_scripts", "ai_ideas", "ai_hooks", "ai_hashtags", "ai_suggestions", "ai_plan", "ai_scripts", "ai_captions", "ai_cta", "analytics_manual", "library", "ai_analytics", "advanced_memory", "advanced_analytics", "reports"] },
   ai_used_this_month: 12, tool_usage: { script: 2 }, trial_ends_at: d(5), projects_count: 1, subscription: { plan: "pro", status: "active", current_period_end: d(20), cancel_at_period_end: false, provider: "stripe" } };
 
 const aiFixtures = {
   suggestions: { ideas: [{ title: "Quanto custa seu cafezinho por ano", format: "Reels", pillar: "educativo", why: "Lacuna de conteúdo leve" }], recommendations: [{ title: "Equilibre pilares", detail: "Mais emocionais." }] },
   script: { title: "3 hábitos que esvaziam sua conta", hook: "Você não gasta muito. Você gasta sem ver.", development: "Primeiro…", core_message: "Controle vem de visibilidade.",
     conclusion: "Comece hoje.", cta: "Salve este vídeo.", full_script: "Você não gasta muito.\nVocê gasta sem ver.\n[corte]\nPrimeiro hábito…", estimated_seconds: 31, recording_tips: ["Grave com luz natural"] },
+  topics: { topics: [{ title: "O custo real do cafezinho diário", angle: "Mostra o efeito acumulado de pequenos gastos", pillar: "educativo", format: "Reels", hook: "Seu café custa R$ 1.800 por ano." }] },
   ideas: { ideas: [{ title: "Orçamento 50/30/20 na prática", type: "carrossel", approach: "Exemplo com salário real", audience: "CLT iniciante", objective: "Salvamentos" }] },
 };
 
-const routes = ["/app", "/planejamento", "/calendario", "/calendario?view=semana", "/calendario?view=lista", "/estudio", "/ideias", "/roteiros", "/roteiros/s1",
+const routes = ["/app", "/assistente", "/planejamento", "/calendario", "/calendario?view=semana", "/calendario?view=lista", "/estudio", "/ideias", "/roteiros", "/roteiros/s1",
   "/producao", "/analytics", "/projetos", "/biblioteca", "/configuracoes", "/configuracoes?tab=plano", "/configuracoes?tab=notificacoes", "/precos"];
 
 const browser = await chromium.launch();
@@ -78,6 +81,11 @@ for (const viewport of [{ width: 1440, height: 900, name: "desktop" }, { width: 
     if (url.pathname.startsWith("/functions/v1/ai-generate")) {
       const tool = JSON.parse(req.postData() ?? "{}").tool;
       return route.fulfill({ json: { data: aiFixtures[tool] ?? {}, usage: { used: 13, limit: 600 } } });
+    }
+    if (url.pathname.startsWith("/functions/v1/ai-chat")) {
+      const lines = [{ type: "start", conversationId: "c2", isNew: true }, { type: "delta", text: "## Plano da semana\n" },
+        { type: "delta", text: "- **Segunda:** reserva de emergência\n- **Terça:** mitos sobre investir" }, { type: "done", conversationId: "c2" }];
+      return route.fulfill({ body: lines.map((l) => JSON.stringify(l)).join("\n") + "\n", contentType: "application/x-ndjson" });
     }
     if (url.pathname === "/rest/v1/rpc/my_plan_status") return route.fulfill({ json: planStatus });
     if (url.pathname.startsWith("/rest/v1/rpc/")) return route.fulfill({ json: [] });
@@ -138,6 +146,19 @@ for (const viewport of [{ width: 1440, height: 900, name: "desktop" }, { width: 
     await page.getByRole("button", { name: "Gerar ideias" }).click();
     await page.getByRole("button", { name: "Virar roteiro" }).first().click();
     await page.getByText("3 hábitos que esvaziam sua conta").waitFor({ timeout: 5000 });
+    // Temas + estilo
+    await page.goto(BASE + "/estudio");
+    await page.getByRole("button", { name: "Temas", exact: true }).click();
+    await page.getByRole("button", { name: /Estilo do projeto/ }).click();
+    await page.getByRole("button", { name: /Storytelling/ }).click();
+    await page.getByRole("button", { name: "Gerar temas" }).click();
+    await page.getByText("O custo real do cafezinho diário").waitFor({ timeout: 4000 });
+    // Assistente com streaming
+    await page.goto(BASE + "/assistente");
+    await page.getByRole("button", { name: /Planejar minha semana/ }).click();
+    await page.getByText("Plano da semana").waitFor({ timeout: 5000 });
+    await page.getByText("Segunda:").waitFor();
+    await page.screenshot({ path: `${OUT}/desktop_assistente_conversa.png` });
     // Teleprompter
     await page.goto(BASE + "/roteiros/s1");
     await page.getByRole("button", { name: "Teleprompter" }).click();

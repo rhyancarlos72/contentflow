@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 
 export type AiTool =
   | "ideas" | "script" | "caption" | "hooks" | "cta" | "hashtags"
-  | "plan" | "analytics_insights" | "suggestions";
+  | "plan" | "analytics_insights" | "suggestions" | "topics";
 
 export class AiError extends Error {
   code: string;
@@ -55,4 +55,7 @@ export interface InsightsResult {
 export interface SuggestionsResult {
   ideas: { title: string; format: string; pillar: string; why: string }[];
   recommendations: { title: string; detail: string }[];
+}
+export interface TopicsResult {
+  topics: { title: string; angle: string; pillar: string; format: string; hook: string }[];
 }

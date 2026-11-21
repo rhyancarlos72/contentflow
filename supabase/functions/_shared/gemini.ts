@@ -2,7 +2,7 @@
 // Modelo padrão: gemini-flash-latest (Flash mais recente, com plano gratuito na
 // API). Troque com o secret GEMINI_MODEL.
 import { ApiError, GoogleGenAI } from "npm:@google/genai@~2.31.0";
-import type { GenerateOptions, GenerateResult } from "./ai.ts";
+import type { ChatOptions, GenerateOptions, GenerateResult, StreamResult } from "./ai.ts";
 import { HttpError, requireEnv } from "./http.ts";
 
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
@@ -65,4 +65,30 @@ export async function generateWithGemini<T>(opts: GenerateOptions): Promise<Gene
     inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
     outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
   };
+}
+
+/** Conversa em streaming com o Gemini. */
+export async function* streamWithGemini(opts: ChatOptions, result: StreamResult): AsyncGenerator<string> {
+  result.model = GEMINI_MODEL;
+  try {
+    const stream = await getClient().models.generateContentStream({
+      model: GEMINI_MODEL,
+      contents: opts.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+      config: { systemInstruction: `${opts.system}\n\n${opts.context}`, maxOutputTokens: opts.maxTokens },
+    });
+    for await (const chunk of stream) {
+      if (chunk.text) yield chunk.text;
+      if (chunk.usageMetadata) {
+        result.inputTokens = chunk.usageMetadata.promptTokenCount ?? result.inputTokens;
+        result.outputTokens = chunk.usageMetadata.candidatesTokenCount ?? result.outputTokens;
+      }
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      console.error("Gemini API error", err.status, err.message);
+      if (err.status === 429) throw new HttpError(503, "ai_busy", "Limite gratuito da IA atingido no momento. Aguarde um minuto.");
+      throw new HttpError(502, "ai_error", "A IA não conseguiu responder agora. Tente novamente.");
+    }
+    throw err;
+  }
 }

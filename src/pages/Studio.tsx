@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowRight, BookmarkPlus, CalendarPlus, Check, Copy, FileText, Hash, Lightbulb, Megaphone, RefreshCw,
+  ArrowRight, BookmarkPlus, Compass, CalendarPlus, Check, Copy, FileText, Hash, Lightbulb, Megaphone, RefreshCw,
   Shuffle, SlidersHorizontal, Sparkles, Type, Volume2, VolumeX, Wand2, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { emptyPost, PostEditorModal, type PostDraft } from "@/components/PostEditorModal";
+import { DEFAULT_STYLE, StylePicker, type StyleChoice } from "@/components/StylePicker";
 import { Button } from "@/components/ui/Button";
 import { Badge, Card } from "@/components/ui/misc";
 import { UpgradeCard } from "@/components/UpgradeGate";
@@ -13,19 +14,20 @@ import { ListeningBar, MicButton, useVoiceAppend } from "@/components/Voice";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   AiError, generate, type AiTool, type CaptionResult, type CtaResult, type HashtagResult, type HookResult,
-  type IdeaResult, type ScriptResult,
+  type IdeaResult, type ScriptResult, type TopicsResult,
 } from "@/lib/ai";
-import { PLATFORMS, TONES } from "@/lib/constants";
+import { pillarMeta, PLATFORMS, TONES } from "@/lib/constants";
 import { useProjectRows, useTableMutations } from "@/lib/queries";
 import { speak } from "@/lib/speech";
 import { topicSuggestions } from "@/lib/suggestions";
 import { cn, copyText } from "@/lib/utils";
 import type { ContentIdea, LibraryItem, LibraryKind, Script } from "@/types";
 
-type ModuleId = "script" | "ideas" | "caption" | "hooks" | "cta" | "hashtags";
+type ModuleId = "topics" | "script" | "ideas" | "caption" | "hooks" | "cta" | "hashtags";
 
 const MODULES: { id: ModuleId; label: string; short: string; icon: typeof Lightbulb; feature: string; placeholder: string; cta: string }[] = [
   { id: "script", label: "Roteiro", short: "Roteiros falados de 15 a 90s", icon: FileText, feature: "ai_scripts", placeholder: "Sobre o que é o vídeo? Fale ou digite…", cta: "Criar roteiro" },
+  { id: "topics", label: "Temas", short: "Pautas prontas com ângulo e gancho", icon: Compass, feature: "ai_topics", placeholder: "Opcional: um foco (ex.: dívidas, primeiros investimentos). Deixe vazio para temas do nicho todo.", cta: "Gerar temas" },
   { id: "ideas", label: "Ideias", short: "Reels, carrosséis, Stories", icon: Lightbulb, feature: "ai_ideas", placeholder: "Um assunto e eu trago ideias prontas…", cta: "Gerar ideias" },
   { id: "caption", label: "Legenda", short: "3 versões no seu tom", icon: Type, feature: "ai_captions", placeholder: "Do que o post fala?", cta: "Criar legendas" },
   { id: "hooks", label: "Ganchos", short: "Aberturas que prendem", icon: Zap, feature: "ai_hooks", placeholder: "Tema do conteúdo…", cta: "Criar ganchos" },
@@ -159,6 +161,7 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
   const [error, setError] = useState<AiError | null>(null);
   const [scheduling, setScheduling] = useState<PostDraft | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [style, setStyle] = useState<StyleChoice>(DEFAULT_STYLE);
   const dictation = useVoiceAppend(topic, setTopic);
   const ran = useRef(false);
 
@@ -175,7 +178,7 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
 
   const run = async (override?: string) => {
     const subject = (override ?? topic).trim();
-    if (!subject) return toast.error("Fale ou digite um assunto primeiro.");
+    if (!subject && id !== "topics") return toast.error("Fale ou digite um assunto primeiro.");
     if (override) setTopic(override);
     dictation.stop();
     setLoading(true);
@@ -183,8 +186,8 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
     setResult(null);
     try {
       const res = await generate<unknown>(id as AiTool, project!.id, {
-        topic: subject, platform: labelOf(PLATFORMS, platform), tone: labelOf(TONES, tone), type, duration: Number(duration),
-        quantity: Number(quantity), niche: project?.niche ?? "", categories, goals,
+        topic: subject, style: style.instruction, quantity: id === "topics" ? 12 : Number(quantity), platform: labelOf(PLATFORMS, platform), tone: labelOf(TONES, tone), type, duration: Number(duration),
+        niche: project?.niche ?? "", categories, goals,
       });
       setResult(res.data);
       refetchPlan();
@@ -198,7 +201,7 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
   };
 
   useEffect(() => {
-    if (autoRun && seedTopic && allowed && project && !ran.current) {
+    if (autoRun && (seedTopic || id === "topics") && allowed && project && !ran.current) {
       ran.current = true;
       run(seedTopic);
     }
@@ -266,6 +269,24 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
   const renderResult = () => {
     if (!result) return null;
     switch (id) {
+      case "topics": return (result as TopicsResult).topics.map((t) => {
+        const pillar = pillarMeta(t.pillar);
+        const goTo = (tool: string) => navigate(`/estudio?ferramenta=${tool}&tema=${encodeURIComponent(t.title)}&auto=1`);
+        return (
+          <ResultCard key={t.title} title={t.title} badge={t.format}
+            actions={<>
+              <Button size="sm" variant="soft" icon={<FileText className="h-3.5 w-3.5" />} onClick={() => goTo("script")}>Roteiro</Button>
+              <Button size="sm" variant="ghost" icon={<Type className="h-3.5 w-3.5" />} onClick={() => goTo("caption")}>Legenda</Button>
+              <Button size="sm" variant="ghost" icon={<Lightbulb className="h-3.5 w-3.5" />} onClick={() => savers.toIdea({ title: t.title, description: `${t.angle}\n\nGancho: ${t.hook}`, format: t.format })}>Salvar</Button>
+              <Button size="sm" variant="ghost" icon={<CalendarPlus className="h-3.5 w-3.5" />}
+                onClick={() => setScheduling({ ...emptyPost(undefined, project?.platforms[0]), title: t.title, hook: t.hook, strategic_goal: t.angle, content_pillar: (pillar?.value ?? null) })}>Agendar</Button>
+            </>}>
+            <p>{t.angle}</p>
+            <p className="mt-2 rounded-lg bg-canvas px-3 py-2 text-[13px]"><span className="font-semibold text-brand-700">Gancho:</span> “{t.hook}”</p>
+            {pillar && <p className="mt-2"><Badge color={pillar.color}>{pillar.label}</Badge></p>}
+          </ResultCard>
+        );
+      });
       case "ideas": return (result as { ideas: IdeaResult[] }).ideas.map((i) => (
         <ResultCard key={i.title} title={i.title} badge={IDEA_TYPES[i.type] ?? i.type}
           actions={<>
@@ -377,7 +398,7 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
               <span className="mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 text-white shadow-glow"><mod.icon className="h-5 w-5" /></span>
               <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={3} placeholder={mod.placeholder} aria-label="Assunto"
                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); }}
-                className="min-h-[84px] flex-1 resize-none bg-transparent text-lg font-medium leading-relaxed text-ink outline-none placeholder:text-ink-faint" />
+                className="min-h-[84px] flex-1 resize-none bg-transparent text-lg font-medium leading-relaxed text-ink outline-none placeholder:text-ink-faint focus-visible:ring-0 focus-visible:ring-offset-0" />
             </div>
             {dictation.listening && <div className="px-5"><ListeningBar interim={dictation.interim} /></div>}
             <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-1">
@@ -386,6 +407,7 @@ function ModuleView({ id, seedTopic, autoRun }: { id: ModuleId; seedTopic: strin
                 className="flex items-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-semibold text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
                 <SlidersHorizontal className="h-3.5 w-3.5" />{summary || "Ajustes"}
               </button>
+              <StylePicker value={style} onChange={setStyle} />
               {toolLimit ? <span className="text-xs font-semibold text-ink-soft">{Math.max(0, toolLimit - toolUsed)} de {toolLimit} grátis este mês</span> : null}
               <Button size="lg" className="ml-auto" icon={<Wand2 className="h-4 w-4" />} loading={loading} onClick={() => run()}>{mod.cta}</Button>
             </div>

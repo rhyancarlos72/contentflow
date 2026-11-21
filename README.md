@@ -53,11 +53,15 @@ tests/e2e/smoke.mjs       Smoke test visual de todas as telas (Playwright)
 - Notificações: o cliente só pode alterar `read_at`.
 
 ### IA
-Dois provedores, escolhidos pelo secret `AI_PROVIDER` (sem ele, usa o Gemini se `GEMINI_API_KEY` existir):
-- **Google Gemini** (`gemini`): tem plano gratuito na API. Chave em https://aistudio.google.com/apikey. Modelo padrão `gemini-flash-latest` (troque com `GEMINI_MODEL`). O plano gratuito tem limite de requisições por minuto/dia e o Google pode usar o conteúdo enviado para melhorar seus produtos; com faturamento ativo, isso deixa de acontecer.
-- **Claude** (`anthropic`): pago. Modelo padrão `claude-opus-5-5` (troque com `AI_MODEL`), com fallback de servidor para recusas.
+Três provedores, escolhidos pelo secret `AI_PROVIDER` (sem ele, usa o primeiro com chave: OpenAI → Gemini → Claude):
+- **OpenAI / GPT** (`openai`): Responses API com saída em JSON validada por schema (`strict`) e streaming no chat. Chave em https://platform.openai.com/api-keys. Modelo padrão `gpt-5.5` (troque com `OPENAI_MODEL`, ex.: `gpt-5.4-mini`, mais barato).
+- **Google Gemini** (`gemini`): tem plano gratuito na API. Chave em https://aistudio.google.com/apikey. Modelo padrão `gemini-flash-latest` (troque com `GEMINI_MODEL`).
+- **Claude** (`anthropic`): modelo padrão `claude-opus-5-5` (troque com `AI_MODEL`).
 
-Nos dois, a resposta vem em JSON validado por schema, a chave fica só no servidor e os limites mensais por plano continuam valendo.
+Recursos de IA:
+- **Estúdio**: temas (pautas com ângulo e gancho), roteiros, ideias, legendas, ganchos, CTAs e hashtags — todos aceitam um **estilo de escrita** (9 prontos ou os estilos do usuário salvos na memória do projeto).
+- **Assistente** (`/assistente`, Edge Function `ai-chat`): conversa com histórico por projeto, resposta em tempo real (NDJSON), ditado por voz, e ações para salvar a resposta como ideia, roteiro ou item da biblioteca.
+- Cada geração ou mensagem conta no limite mensal do plano; a chave fica só no servidor.
 
 ## Como rodar
 

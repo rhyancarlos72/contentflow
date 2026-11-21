@@ -27,12 +27,18 @@ export default function Projects() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (params.get("memoria") && active) {
+      setMemoryFor(active);
+      params.delete("memoria");
+      setParams(params, { replace: true });
+      return;
+    }
     if (params.get("novo")) {
       setEditing({ color: COLORS[projects.length % COLORS.length], platforms: [], goals: [], posts_per_week: 3, kind: "marca_pessoal" });
       params.delete("novo");
       setParams(params, { replace: true });
     }
-  }, [params, setParams, projects.length]);
+  }, [params, setParams, projects.length, active]);
 
   const counts = useQuery({
     queryKey: ["project-counts", projects.map((p) => p.id).join()],

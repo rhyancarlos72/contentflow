@@ -11,7 +11,7 @@ function getClient(): Anthropic {
   return client;
 }
 
-import type { GenerateOptions, GenerateResult } from "./ai.ts";
+import type { ChatOptions, GenerateOptions, GenerateResult, StreamResult } from "./ai.ts";
 
 /**
  * Gera uma resposta estruturada (JSON validado pelo schema).
@@ -77,4 +77,35 @@ export async function generateWithClaude<T>(opts: GenerateOptions): Promise<Gene
       (message.usage.cache_creation_input_tokens ?? 0),
     outputTokens: message.usage.output_tokens ?? 0,
   };
+}
+
+/** Conversa em streaming com o Claude. */
+export async function* streamWithClaude(opts: ChatOptions, result: StreamResult): AsyncGenerator<string> {
+  const stream = getClient().messages.stream({
+    model: CLAUDE_MODEL,
+    max_tokens: opts.maxTokens,
+    output_config: { effort: "low" },
+    system: [
+      { type: "text", text: opts.system, cache_control: { type: "ephemeral" } },
+      { type: "text", text: opts.context },
+    ],
+    messages: opts.messages.map((m) => ({ role: m.role, content: m.content })),
+  });
+  result.model = CLAUDE_MODEL;
+  try {
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") yield event.delta.text;
+    }
+    const final = await stream.finalMessage();
+    result.model = final.model;
+    result.inputTokens = final.usage.input_tokens + (final.usage.cache_read_input_tokens ?? 0);
+    result.outputTokens = final.usage.output_tokens;
+    if (final.stop_reason === "refusal") yield "\n\n(A IA não pôde continuar esta resposta.)";
+  } catch (err) {
+    if (err instanceof Anthropic.APIError) {
+      console.error("Claude API error", err.status, err.message);
+      throw new HttpError(502, "ai_error", "A IA não conseguiu responder agora. Tente novamente.");
+    }
+    throw err;
+  }
 }

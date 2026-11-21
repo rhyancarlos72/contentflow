@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Lightbulb, Sparkles, Type, Zap } from "lucide-react";
+import { Compass, FileText, Lightbulb, MessageSquare, Sparkles, Type, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { topicSuggestions } from "@/lib/suggestions";
@@ -12,6 +12,7 @@ const ACTIONS = [
   { tool: "ideas", label: "Ideias", icon: Lightbulb },
   { tool: "caption", label: "Legenda", icon: Type },
   { tool: "hooks", label: "Ganchos", icon: Zap },
+  { tool: "topics", label: "Temas", icon: Compass },
 ] as const;
 
 /** Criação rápida: fale ou digite e escolha o que gerar. */
@@ -24,7 +25,7 @@ export function QuickCreate({ greeting }: { greeting: string }) {
   const chips = topicSuggestions(project?.niche ?? "", seed, 3);
 
   const go = (tool: string, subject = topic) => {
-    if (!subject.trim()) return toast.error("Fale ou digite um assunto — ou toque numa sugestão.");
+    if (!subject.trim() && tool !== "topics") return toast.error("Fale ou digite um assunto — ou toque numa sugestão.");
     dictation.stop();
     navigate(`/estudio?ferramenta=${tool}&tema=${encodeURIComponent(subject.trim())}&auto=1`);
   };
@@ -45,6 +46,10 @@ export function QuickCreate({ greeting }: { greeting: string }) {
         </div>
         {dictation.listening && <ListeningBar interim={dictation.interim} />}
         <div className="mt-4 flex flex-wrap gap-2">
+          <button onClick={() => topic.trim() ? navigate(`/assistente?msg=${encodeURIComponent(topic.trim())}`) : navigate("/assistente")}
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-400 to-[#B05BD8] px-4 py-2 text-sm font-bold text-white shadow-glow transition hover:-translate-y-0.5">
+            <MessageSquare className="h-4 w-4" />Conversar
+          </button>
           {ACTIONS.map((a) => (
             <button key={a.tool} onClick={() => go(a.tool)}
               className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#13102A] transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-6px_rgba(151,117,222,.9)]">

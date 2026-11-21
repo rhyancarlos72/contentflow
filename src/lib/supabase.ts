@@ -4,12 +4,16 @@ import { createClient } from "@supabase/supabase-js";
 const runtimeEnv = (window as { __ENV__?: Record<string, string> }).__ENV__ ?? {};
 const env = (key: string) => runtimeEnv[key] || (import.meta.env[key] as string | undefined) || undefined;
 
-const url = env("VITE_SUPABASE_URL");
-const anonKey = env("VITE_SUPABASE_ANON_KEY");
+// Aceita a URL com "/rest/v1" ou barra no fim (erro comum ao copiar do painel).
+const url = env("VITE_SUPABASE_URL")?.trim().replace(/\/(rest|auth)\/v1\/?$/, "").replace(/\/+$/, "");
+const anonKey = env("VITE_SUPABASE_ANON_KEY")?.trim();
+
+export const supabaseUrl = url ?? "http://localhost:54321";
+export const supabaseAnonKey = anonKey ?? "public-anon-key";
 
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
-export const supabase = createClient(url ?? "http://localhost:54321", anonKey ?? "public-anon-key", {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
